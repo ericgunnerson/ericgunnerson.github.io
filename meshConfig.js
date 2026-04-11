@@ -34,7 +34,7 @@ const shapeMap = {
     points: [ q,b, q,p, t,p, t,q, p,q, p,b, q,b ],
     colliders: [
       [ q,b, p,b, p,q, q,q, q,b ],
-      [ q,q, t,q, t,p, b,p, q,q ]
+      [ q,q, t,q, t,p, q,p, q,q ]
     ]
   },
   '-': { type: 'ExtrudeGeometry', args: [], 
@@ -234,8 +234,8 @@ function getMeshesFromMap(mapIndex) {
               flatShading: false,
               transparent: true,
               opacity: 1.0,
-              roughness: Math.random(), //0.3,
-              metalness: .5//Math.random() //0.0
+              roughness: .2, //0.3,
+              metalness: .2//Math.random() //0.0
             }
           },
           position: { x: xPos, y: yPos, z: 0 },

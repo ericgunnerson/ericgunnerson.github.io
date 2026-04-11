@@ -1,5 +1,6 @@
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
 import { OrbitControls } from "jsm/controls/OrbitControls.js";
+import { sky as Sky } from "./sky.js";
 import { GameControls } from './controls.js';
 import { meshConfigs } from './meshConfig.js';
 import * as RAPIER from "@dimforge/rapier3d";
@@ -13,9 +14,10 @@ const collections = {
 let renderer, camera, scene, controls, player, world;
 
 async function initRenderer() {
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGPURenderer({ antialias: true });
   renderer.setSize(w, h);
   document.body.appendChild(renderer.domElement);
+  await renderer.init();
 }
 
 async function initCamera() {
@@ -27,6 +29,8 @@ async function initCamera() {
   camera.position.z = 5;
   camera.position.y = -.5;
   camera.lookAt(player.position);
+
+  Sky(scene);
 }
 
 window.addEventListener('resize', onWindowResize, false);
@@ -149,7 +153,7 @@ async function initMeshes() {
   }
 
   const geometry = new THREE.SphereGeometry( 1, 32, 16 );
-  const material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+  const material = new THREE.MeshStandardMaterial( { color: 0xff0000, roughness: .2, metalness: .2 } );
   const sphere = new THREE.Mesh( geometry, material );
   sphere.visible = true;
   scene.add( sphere );
@@ -167,13 +171,17 @@ async function initMeshes() {
 }
 
 async function initLights() {
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xff0000);
-  collections.lights.push(hemiLight);
-  scene.add(hemiLight);
+  // const hemiLight = new THREE.HemisphereLight(0xffffff, 0xff0000);
+  // collections.lights.push(hemiLight);
+  // scene.add(hemiLight);
 
   const ambientLight = new THREE.AmbientLight(0x404040); // soft white light
   collections.lights.push(ambientLight);
   scene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+  directionalLight.position.set(5, 10, 7);
+  scene.add( directionalLight );
 }
 
 async function initPhysics() {
@@ -181,7 +189,7 @@ async function initPhysics() {
   world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
 }
 
-function animate() {
+async function animate() {
   requestAnimationFrame(animate);
   controls.update();
   world.step();
@@ -191,7 +199,7 @@ function animate() {
   // Move camera with player
   camera.position.x = player.position.x;
   camera.position.y = player.position.y + 2;
-  camera.position.z = player.position.z + 50;
+  camera.position.z = player.position.z + 10;
   camera.lookAt(player.position);
   meshConfigs.forEach(config => { config.animate(config); });
   renderer.render(scene, camera);
@@ -206,5 +214,5 @@ function animate() {
   await initGameControls();
   await initCamera();
   await initLights();
-  animate();
+  await animate();
 })();

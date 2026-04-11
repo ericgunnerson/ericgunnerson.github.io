@@ -119,7 +119,7 @@ function isTouchingGround() {
     const intersections = raycaster.intersectObjects(meshes);
     
     // Return true if there's an intersection within distance 1
-    if (intersections.length > 0 && intersections[0].distance <= 1) {
+    if (intersections.length > 0 && intersections[0].distance <= 1.1) {
         return true;
     }
     
