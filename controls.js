@@ -54,7 +54,6 @@ function checkDistance(gameObject) {
 }
 
 function setKeyState(e, keyState) {
-    state.onGround = isTouchingGround();
     switch (e.key) {
         case 'ArrowLeft':
             state.leftKey = keyState;
@@ -77,21 +76,40 @@ function setKeyState(e, keyState) {
     }
 
     if (state.leftKey) {
-        state.xImpulse = state.onGround || state.xImpulse == -10 ? -10 : -1;
+        moveLeft();
     } else if (state.rightKey) {
-        state.xImpulse = state.onGround || state.xImpluse == 10 ? 10 : 1;
+        moveRight();
     } else {
-        state.xImpulse = 0;
+        stopMove();
     }
 
-    if (state.upKey && state.onGround) {
-        if ( state.onGround ) {
-            state.yImpulse = 300;
-        }
-    } else if (state.downKey) {
-        // gravity will pull us down, no need for input...
+    if (state.upKey) {
+        doJump();
     } else {
-        state.yImpulse = 0;
+        stopJump();
+    }
+}
+
+function stopJump() {
+    state.yImpulse = 0;
+}
+
+function stopMove() {
+    state.xImpulse = 0;
+}
+
+function moveRight() {
+    state.xImpulse = state.onGround || state.xImpluse == 10 ? 10 : 1;
+}
+
+function moveLeft() {
+    state.xImpulse = state.onGround || state.xImpulse == -10 ? -10 : -1;
+}
+
+function doJump() {
+    state.onGround = isTouchingGround();
+    if ( state.onGround ) {
+        state.yImpulse = 300;
     }
 }
 
@@ -132,13 +150,48 @@ const gameControls = (camera, domElement, gameObjects, player) => {
     state.domElement = domElement;
     state.gameObjects = gameObjects;
     state.player = player;
-    console.log(`i initted the player: `, state.player);
+
+    // Touch event variables
+    let touchStartTime;
+    let touchStartX;
+    let isMoving = false;
+    const moveThreshold = 10; // pixels
 
     window.addEventListener("keydown", (e) => {
         setKeyState(e, true);
     });
     window.addEventListener("keyup", (e) => {
         setKeyState(e, false);
+    });
+
+    // Touch event listeners
+    domElement.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        touchStartTime = Date.now();
+        touchStartX = e.touches[0].clientX;
+        isMoving = false;
+    });
+
+    domElement.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        const deltaX = e.touches[0].clientX - touchStartX;
+        if (Math.abs(deltaX) > moveThreshold) {
+            isMoving = true;
+            if (deltaX > 0) {
+                moveRight();
+            } else {
+                moveLeft();
+            }
+        }
+    });
+
+    domElement.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        if (isMoving) {
+            stopMove();
+        } else {
+            doJump();
+        }
     });
 
     return state;
