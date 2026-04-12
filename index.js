@@ -2,9 +2,11 @@ import * as THREE from "three";
 import { OrbitControls } from "jsm/controls/OrbitControls.js";
 import { sky as Sky } from "./sky.js";
 import { GameControls } from './controls.js';
-import { meshConfigs } from './meshConfig.js';
+import { meshConfigData } from './meshConfig.js';
 import * as RAPIER from "@dimforge/rapier3d";
 
+const meshConfigs = meshConfigData.meshes;
+const playerStart = meshConfigData.playerStart;
 const w = window.innerWidth;
 const h = window.innerHeight;
 const collections = {
@@ -156,6 +158,7 @@ function deactivateMesh(config) {
 
 
 async function initMeshes() {
+  console.log(`what in the world is going on`);
   for (const config of meshConfigs) {
     config.scene = scene;
     config.activateMesh = activateMesh;
@@ -177,7 +180,7 @@ async function initMeshes() {
   const colliderDesc = RAPIER.ColliderDesc.ball(1);
   player.collider = world.createCollider(colliderDesc, player.rigidBody);
 
-  player.rigidBody.setTranslation({ x: 0, y: 50, z: 0.0 }, true);
+  player.rigidBody.setTranslation({ x: playerStart.x, y: playerStart.y, z: 0.0 }, true);
   player.onGround = false;
 }
 
