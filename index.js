@@ -1,4 +1,4 @@
-import * as THREE from "three/webgpu";
+import * as THREE from "three";
 import { OrbitControls } from "jsm/controls/OrbitControls.js";
 import { sky as Sky } from "./sky.js";
 import { GameControls } from './controls.js';
@@ -11,26 +11,36 @@ const collections = {
   meshes: [],
   lights: [],
 };
-let renderer, camera, scene, controls, player, world;
+let renderer, camera, scene, controls, player, world, sky;
 
 async function initRenderer() {
-  renderer = new THREE.WebGPURenderer({ antialias: true });
+  renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(w, h);
   document.body.appendChild(renderer.domElement);
-  await renderer.init();
+
+  // Prevent default touch behaviors for mobile controls
+  const canvas = renderer.domElement;
+  canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  canvas.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
+
+  // Also prevent on body to avoid pull-to-refresh
+  document.body.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  document.body.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  document.body.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
 }
 
 async function initCamera() {
   const fov = 75;
   const aspect = w / h;
   const near = 0.1;
-  const far = 1000;
+  const far = 10000;
   camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
   camera.position.z = 5;
   camera.position.y = -.5;
   camera.lookAt(player.position);
 
-  Sky(scene);
+  sky = Sky(scene);
 }
 
 window.addEventListener('resize', onWindowResize, false);
@@ -201,6 +211,7 @@ async function animate() {
   camera.position.y = player.position.y + 2;
   camera.position.z = player.position.z + 10;
   camera.lookAt(player.position);
+  sky.position.x = camera.position.x;
   meshConfigs.forEach(config => { config.animate(config); });
   renderer.render(scene, camera);
 }

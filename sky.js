@@ -1,51 +1,67 @@
 import * as THREE from 'three';                    // or 'three/webgpu' if you prefer
-import { WebGPURenderer } from 'three/webgpu';
-import { Fn, vec3, mix, cameraPosition, screenUV, float, array } from 'three/tsl';
-
-
-// import {
-//   Fn, vec3, mix, cameraPosition,
-//   float, If, Else, Break, Continue,
-//   array, uniformArray   // for cleaner uniform handling if needed
-// } from 'three/tsl';
-
 
 const gradientStops = [
-  { y: -20, color: new THREE.Color(0x1e3a8a) }, // deep blue at low Y
-  { y: -5,  color: new THREE.Color(0x3b82f6) }, // blue
-  { y:  0,  color: new THREE.Color(0x60a5fa) }, // light blue
-  { y: 10,  color: new THREE.Color(0xfacc15) }, // yellow
-  { y: 25,  color: new THREE.Color(0xf97316) }  // orange at high Y
-];
+  { y: 1,  color: new THREE.Color(0xf97316) },  // orange at top
+  { y: 0.75,  color: new THREE.Color(0xf97316) },  // orange at top
+  { y: 0.55,  color: new THREE.Color(0xfacc15) }, // yellow
+  { y:  0.4,  color: new THREE.Color(0x60a5fa) }, // light blue
+  { y: 0.3,  color: new THREE.Color(0x3b82f6) }, // blue
+  { y: 0.2, color: new THREE.Color(0x1e3a8a) }, // deep blue at bottom
+  { y: 0, color: new THREE.Color(0x1e3a8a) }, // deep blue at bottom
+].reverse();
 
 export const sky = (scene) => {
+  const height = 400;
+  const geometry = new THREE.BoxGeometry(200, height, 100);
 
-  // Convert stops to TSL-friendly arrays (do this once)
-  const stopYs = gradientStops.map(stop => float(stop.y));
-  const stopColors = gradientStops.map(stop => vec3(
-    stop.color.r, stop.color.g, stop.color.b
-  ));
 
-  const ysNode = array(stopYs);           // or uniformArray if you want to update later
-  const colorsNode = array(stopColors);
+  const m = new THREE.ShaderMaterial({
+    uniforms: {
+      colors: { value: gradientStops.map(stop => stop.color) },
+      ys: { value: gradientStops.map(stop => stop.y) },
+      numStops: { value: gradientStops.length },
+      height: { value: height }
+    },
+    vertexShader: `
+      varying float h; 
 
-  scene.backgroundNode = Fn(() => {
-    const camY = cameraPosition.y;
-    let color = colorsNode.element(0).toVar();
+      void main() {
+        h = position.y;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 colors[${gradientStops.length}]; 
+      uniform float ys[${gradientStops.length}];
+      uniform int numStops;
+      uniform float height;
 
-    for (let i = 1; i < gradientStops.length; i++) {
-      const y0 = ysNode.element(i - 1);
-      const y1 = ysNode.element(i);
-      const c0 = colorsNode.element(i - 1);
-      const c1 = colorsNode.element(i);
+      varying float h;
 
-      const segmentT = camY.sub(y0).div(y1.sub(y0)).clamp(0, 1);
+      void main() {
+        float normalizedY = (h + height * 0.5) / height;
+        normalizedY = clamp(normalizedY, 0.0, 1.0);
+        
+        vec3 color = colors[0];  // default to first color
+        
+        for(int i = 0; i < ${gradientStops.length-1}; i++) {  // loop through segments
+          if(normalizedY >= ys[i] && normalizedY <= ys[i+1]) {
+            float t = (normalizedY - ys[i]) / (ys[i+1] - ys[i]);
+            color = mix(colors[i], colors[i+1], t);
+            break;
+          }
+        }
+        
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+      side: THREE.BackSide
+  });
 
-      // Only blend if we're past the previous stop
-      color = mix(color, c1, segmentT);
-    }
 
-    return color;
-  })();
+  const material = m;
 
+  const mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
+  return mesh;
 }
