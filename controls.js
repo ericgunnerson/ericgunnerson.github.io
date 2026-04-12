@@ -99,10 +99,12 @@ function stopMove() {
 }
 
 function moveRight() {
+    state.onGround = isTouchingGround();
     state.xImpulse = state.onGround || state.xImpluse == 10 ? 10 : 1;
 }
 
 function moveLeft() {
+    state.onGround = isTouchingGround();
     state.xImpulse = state.onGround || state.xImpulse == -10 ? -10 : -1;
 }
 
