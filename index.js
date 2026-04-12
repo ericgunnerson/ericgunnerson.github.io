@@ -20,6 +20,7 @@ async function initRenderer() {
 
   // Prevent default touch behaviors for mobile controls
   const canvas = renderer.domElement;
+  canvas.style.touchAction = 'none'; // Disable default touch actions like scrolling
   canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
   canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
   canvas.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
