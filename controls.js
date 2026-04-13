@@ -120,27 +120,37 @@ function doNothing() {
 }
 
 function isTouchingGround() {
-    // cast a ray straight down from the center of player.position
-    // if it intersects with the mesh of any of gameObjects, with a
-    // length of 1, then return true, else return false
+    // Cast three rays: straight down, 5° left, and 5° right
+    // Check if any intersect within their respective thresholds
     
     const raycaster = new THREE.Raycaster();
     const rayOrigin = state.player.position.clone();
-    const rayDirection = new THREE.Vector3(0, -1, 0); // Point straight down
     
-    raycaster.set(rayOrigin, rayDirection);
+    // Three ray directions: straight down, 5° left, and 5° right
+    const angle5 = 5 * Math.PI / 180; // 5 degrees in radians
+    const angle10 = 10 * Math.PI / 180;
+    const rayDirections = [
+        { angle: new THREE.Vector3(0, -1, 0), threshold: 1.1 }
+    ];
+    for (let i = 1; i <= 15; i++) {
+        const angle = i * Math.PI / 180;
+        rayDirections.push({ angle: new THREE.Vector3(-Math.sin(angle), -Math.cos(angle), 0), threshold: 1.2 });
+        rayDirections.push({ angle: new THREE.Vector3(Math.sin(angle), -Math.cos(angle), 0), threshold: 1.2 });
+    }
     
     // Get all meshes from gameObjects (filter out objects without meshes)
     const meshes = state.gameObjects
         .filter(obj => obj.mesh)
         .map(obj => obj.mesh);
     
-    // Check for intersections
-    const intersections = raycaster.intersectObjects(meshes);
-    
-    // Return true if there's an intersection within distance 1
-    if (intersections.length > 0 && intersections[0].distance <= 1.1) {
-        return true;
+    // Check each ray
+    for (let i = 0; i < rayDirections.length; i++) {
+        raycaster.set(rayOrigin, rayDirections[i].angle);
+        const intersections = raycaster.intersectObjects(meshes);
+        
+        if (intersections.length > 0 && intersections[0].distance <= rayDirections[i].threshold) {
+            return true;
+        }
     }
     
     return false;
