@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import * as RAPIER from "@dimforge/rapier3d";
 
 const playerStart =  { x: 0, y: 0, z: 0 };
 
@@ -19,7 +20,25 @@ function rotateX90(mesh) {
   }
 }
 
-function none() { }
+function animate(gameObject, player) {
+  if (checkDistance(gameObject, player)) {
+      gameObject.activateMesh(gameObject);
+  } else {
+      gameObject.deactivateMesh(gameObject);
+  }
+}
+
+function checkDistance(gameObject, player) {
+  if (player) {
+    const dx = gameObject.position.x - player.position.x;
+    const dy = gameObject.position.y - player.position.y;
+    const dz = gameObject.position.z - player.position.z;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    return distance <= 30;
+  } else {
+    return false;
+  }
+}
 
 export const geometries = [
   { type: 'TorusGeometry', args: [1, .5, 10, 15] },
@@ -93,16 +112,15 @@ const shapeMap = {
 }
 
 export const colors = [
-  0xDD0000, // red
-  0x00FF00, // green
-  0x0000FF, // blue
-  0xFFFF00, // yellow
-  0xFF00FF, // magenta
-  0x00FFFF, // cyan
-  0xFF6600, // orange
-  0xFF0066, // pink
-  0x66FF00, // lime
-  0x0066FF  // sky blue
+  // greens
+  0x0E2F1E, // 
+  0x13663C, // 
+  0x00C963, // 
+
+  // blues
+  0x0F202B, // 
+  0x0876BE, // 
+  0x16415D, // 
 ];
 
 function randomMeshes(xSize, ySize) {
@@ -157,6 +175,93 @@ function randomMeshes(xSize, ySize) {
   return configs;
 }
 
+async function initMesh(config, collections, world) {
+  let geo = null;
+  config.collections = collections;
+  config.world = world;
+  if (config.geometry.type == 'ExtrudeGeometry') {
+    geo = config.geometry.geometry;
+  } else {
+    geo = new THREE[config.geometry.type](...config.geometry.args);
+  }
+  const mat = new THREE[config.material.type](config.material.options);
+  const mesh = new THREE.Mesh(geo, mat);
+  config.mesh = mesh;
+  mesh.position.set(config.position.x, config.position.y, config.position.z);
+  collections.meshes.push(mesh);
+  config.scene.add(mesh);
+  if (config.init) {
+    config.init(mesh);
+  }
+
+  // Create Rapier convex hull collider
+  config.rigidBodies = [];
+  const allVerts = config.geometry.colliderGeometries;
+  for (let verts of allVerts) {
+    //console.log(`guess what here is the whole geometry object: `, config.geometry);
+    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed();
+    const rigidBody = world.createRigidBody(rigidBodyDesc);
+    rigidBody.setTranslation(mesh.position, true);
+    rigidBody.setRotation(mesh.quaternion, true);
+    const vertices = verts.attributes.position.array;
+    const colliderDesc = RAPIER.ColliderDesc.convexHull(vertices);
+    world.createCollider(colliderDesc, rigidBody);
+    config.rigidBodies.push( rigidBody );
+  }
+}
+
+function destroyMesh(config) {
+  const mesh = config.mesh;
+  if (mesh) {
+
+    mesh.geometry.boundsTree = null;
+
+    // Dispose geometries and materials to free memory
+    mesh.traverse((child) => {
+      if (child.isMesh) {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(mat => mat.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      }
+    });
+    // Remove from scene
+    config.scene.remove(mesh);
+    // Remove from collections
+    const index = config.collections.meshes.indexOf(mesh);
+    if (index > -1) {
+      config.collections.meshes.splice(index, 1);
+    }
+    // Remove rigid body from physics world
+    if (config.rigidBodies) {
+      for (let bod of config.rigidBodies) {
+        config.world.removeRigidBody(bod);
+      }
+      config.rigidBodies = [];
+    }
+    // Nullify reference
+    config.mesh = null;
+  }
+}
+
+function activateMesh(config) {
+  //config.mesh.material.color.set(0xffffff);
+  if (!config.mesh) {
+   initMesh(config, config.collections, config.world);
+  }
+}
+
+function deactivateMesh(config) {
+  //config.mesh.material.color.set(config.material.options.color);
+  if (config.mesh) {
+   destroyMesh(config);
+  }
+}
+
 function instantiateShapeMapGeometries() {
   for (let shapeKey in shapeMap) {
     const currentShape = shapeMap[shapeKey];
@@ -208,8 +313,6 @@ function getMeshesFromMap(mapIndex) {
   const startOffsetX = -totalSizeX / 2;
   const totalSizeY = (ySize - 1) * spacing;
   const startOffsetY = -totalSizeY / 2;
-  const animateFunctions = [none];
-  const initFunctions = [none];
 
   for (let y = 0; y < ySize; y++) {
     for (let x = 0; x < xSize; x++) {
@@ -222,8 +325,7 @@ function getMeshesFromMap(mapIndex) {
       const randomXRot = Math.random() > 0.1;
       const randomYRot = Math.random() > 0.1;
       const randomZRot = Math.random() > 0.1;
-      const randomAnimate = animateFunctions[Math.floor(Math.random() * animateFunctions.length)];
-      const randomInit = initFunctions[Math.floor(Math.random() * initFunctions.length)];
+      const randomInit = () => {};
 
       if (mapInd == '*') {
         playerStart.x = xPos;
@@ -248,7 +350,10 @@ function getMeshesFromMap(mapIndex) {
           playerStart: mapInd == '*',
           wireframe: false,
           init: randomInit,
-          animate: randomAnimate,
+          initMesh: initMesh,
+          activateMesh: activateMesh,
+          deactivateMesh: deactivateMesh,
+          animate: animate,
           xRot: randomXRot ? (Math.random() - .5) / 15 : 0,
           yRot: randomYRot ? (Math.random() - .5) / 15 : 0,
           zRot: randomZRot ? (Math.random() - .5) / 15 : 0
@@ -260,7 +365,56 @@ function getMeshesFromMap(mapIndex) {
   return configs;
 }
 
+const referenceTiles = [
+// this first one will be the thing that every border tile uses respectively
+`
+┌-┐
+| |
+└-┘
+`,
+`
+┌-----┐ ┌┐
+|        |
+└        |
+         |
+┌        ┘
+|         
+|        ┐
+|        |
+|        |
+└--┘ └---┘
+`,
+`
+ - - - - -
+- - - - - 
+ - - - - -
+- - - - - 
+ - - - - -
+- - - - - 
+ - - - - -
+- - - - - 
+ - - - - -
+- - - - - 
+`,
+];
+
+function generateRandomizedMap(xTiles, yTiles) {
+  // randomly create a 2d array of chars from the strings in referenceTiles
+  // xTiles is the number of tiles in the horizontal direction,
+  // yTiles is the number of tiles in the vertical direction.
+  // each tile is 10x10 chars, except for the 0th tile in referenceTiles.
+  // the 0 tile is the edge/corner reference tile.
+  // if we are drawing the top left character for a given tile, use the top
+  // left tile of referenceTiles[0], same for top right, etc.
+  // If we are drawing the top edge (apart from either corner), use the top
+  // center of referenceTiles[0], same for the other edges respectively.
+  // other than that, we pick a random tile from referenceTiles[1] to [n-1]
+  // and use the values from that tile in the given tile for the 2d char array.
+  // return a string that separates each row of the array by a \n
+}
+
 const maps = [
+generateRandomizedMap(10, 10),
 `
 |                                                                                                                                           |
 |                                                                                                                                           |

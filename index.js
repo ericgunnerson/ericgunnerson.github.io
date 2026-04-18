@@ -19,18 +19,6 @@ async function initRenderer() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(w, h);
   document.body.appendChild(renderer.domElement);
-
-  // Prevent default touch behaviors for mobile controls
-  const canvas = renderer.domElement;
-  canvas.style.touchAction = 'none'; // Disable default touch actions like scrolling
-  canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
-  canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-  canvas.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
-
-  // Also prevent on body to avoid pull-to-refresh
-  document.body.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
-  document.body.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-  document.body.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
 }
 
 async function initCamera() {
@@ -68,102 +56,13 @@ async function initOrbitControls() {
 }
 
 async function initGameControls() {
-  controls = GameControls(camera, renderer.domElement, meshConfigs, player);
+  controls = GameControls(camera, renderer, meshConfigs, player);
 }
-
-async function initMesh(config) {
-  let geo = null;
-  if (config.geometry.type == 'ExtrudeGeometry') {
-    geo = config.geometry.geometry;
-  } else {
-    geo = new THREE[config.geometry.type](...config.geometry.args);
-  }
-  const mat = new THREE[config.material.type](config.material.options);
-  const mesh = new THREE.Mesh(geo, mat);
-  config.mesh = mesh;
-  mesh.position.set(config.position.x, config.position.y, config.position.z);
-  collections.meshes.push(mesh);
-  config.scene.add(mesh);
-  if (config.init) {
-    config.init(mesh);
-  }
-
-  // Create Rapier convex hull collider
-  config.rigidBodies = [];
-  const allVerts = config.geometry.colliderGeometries;
-  for (let verts of allVerts) {
-    //console.log(`guess what here is the whole geometry object: `, config.geometry);
-    const rigidBodyDesc = RAPIER.RigidBodyDesc.fixed();
-    const rigidBody = world.createRigidBody(rigidBodyDesc);
-    rigidBody.setTranslation(mesh.position, true);
-    rigidBody.setRotation(mesh.quaternion, true);
-    const vertices = verts.attributes.position.array;
-    const colliderDesc = RAPIER.ColliderDesc.convexHull(vertices);
-    world.createCollider(colliderDesc, rigidBody);
-    config.rigidBodies.push( rigidBody );
-  }
-}
-
-function destroyMesh(config) {
-  const mesh = config.mesh;
-  if (mesh) {
-
-    mesh.geometry.boundsTree = null;
-
-    // Dispose geometries and materials to free memory
-    mesh.traverse((child) => {
-      if (child.isMesh) {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(mat => mat.dispose());
-          } else {
-            child.material.dispose();
-          }
-        }
-      }
-    });
-    // Remove from scene
-    config.scene.remove(mesh);
-    // Remove from collections
-    const index = collections.meshes.indexOf(mesh);
-    if (index > -1) {
-      collections.meshes.splice(index, 1);
-    }
-    // Remove rigid body from physics world
-    if (config.rigidBodies) {
-      for (let bod of config.rigidBodies) {
-        world.removeRigidBody(bod);
-      }
-      config.rigidBodies = [];
-    }
-    // Nullify reference
-    config.mesh = null;
-  }
-}
-
-function activateMesh(config) {
-  //config.mesh.material.color.set(0xffffff);
-  if (!config.mesh) {
-   initMesh(config);
-  }
-}
-
-function deactivateMesh(config) {
-  //config.mesh.material.color.set(config.material.options.color);
-  if (config.mesh) {
-   destroyMesh(config);
-  }
-}
-
 
 async function initMeshes() {
-  console.log(`what in the world is going on`);
   for (const config of meshConfigs) {
     config.scene = scene;
-    config.activateMesh = activateMesh;
-    config.deactivateMesh = deactivateMesh;
-    await initMesh(config);
+    await config.initMesh(config, collections, world);
   }
 
   const geometry = new THREE.SphereGeometry( 1, 32, 16 );
@@ -181,7 +80,6 @@ async function initMeshes() {
   player.collider = world.createCollider(colliderDesc, player.rigidBody);
 
   player.rigidBody.setTranslation({ x: playerStart.x, y: playerStart.y, z: 0.0 }, true);
-  player.onGround = false;
 }
 
 async function initLights() {
@@ -216,7 +114,7 @@ async function animate() {
   camera.position.z = player.position.z + 10;
   camera.lookAt(player.position);
   sky.position.x = camera.position.x;
-  meshConfigs.forEach(config => { config.animate(config); });
+  meshConfigs.forEach(config => { config.animate(config, player); });
   renderer.render(scene, camera);
 }
 

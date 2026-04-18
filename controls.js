@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 const state = {
+    raycaster: new THREE.Raycaster(),
     active: true,
     update: update,
     leftKey: false,
@@ -16,7 +17,7 @@ const state = {
     onGround: false,
     stepMode: true,
     canStep: true,
-    showRight: false
+    showRight: false,
 }
 
 function update() {
@@ -26,31 +27,13 @@ function update() {
         return;
     }
 
-    const moveSpeed = state.moveSpeed;
-
-    // Apply movement to player.rigidBody (z locked at 0)
-    const movement = new THREE.Vector3(state.xImpulse, state.yImpulse, 0).multiplyScalar(moveSpeed);
+    const movement = new THREE.Vector3(state.xImpulse, state.yImpulse, 0).multiplyScalar(state.moveSpeed);
     state.yImpulse = 0;
     state.player.rigidBody.applyImpulse(movement, true);
+
+    // lock movement on z axis
     const newPos = state.player.rigidBody.translation();
     state.player.rigidBody.setTranslation({ x: newPos.x, y: newPos.y, z: 0.0 }, true);
-
-    state.gameObjects.forEach(gameObject => {
-
-        if (checkDistance(gameObject)) {
-            gameObject.activateMesh(gameObject);
-        } else {
-            gameObject.deactivateMesh(gameObject);
-        }
-    });
-}
-
-function checkDistance(gameObject) {
-    const dx = gameObject.position.x - state.player.position.x;
-    const dy = gameObject.position.y - state.player.position.y;
-    const dz = gameObject.position.z - state.player.position.z;
-    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    return distance <= 30;
 }
 
 function setKeyState(e, keyState) {
@@ -120,22 +103,20 @@ function doNothing() {
 }
 
 function isTouchingGround() {
-    // Cast three rays: straight down, 5° left, and 5° right
+    // Cast some sweeping rays beneath the player.
     // Check if any intersect within their respective thresholds
     
-    const raycaster = new THREE.Raycaster();
-    const rayOrigin = state.player.position.clone();
+    const raycaster = state.raycaster;
+    const rayOrigin = state.player.position;
     
-    // Three ray directions: straight down, 5° left, and 5° right
-    const angle5 = 5 * Math.PI / 180; // 5 degrees in radians
-    const angle10 = 10 * Math.PI / 180;
     const rayDirections = [
         { angle: new THREE.Vector3(0, -1, 0), threshold: 1.1 }
     ];
-    for (let i = 1; i <= 15; i++) {
+    for (let i = .2; i <= 45; i+=.2) {
         const angle = i * Math.PI / 180;
-        rayDirections.push({ angle: new THREE.Vector3(-Math.sin(angle), -Math.cos(angle), 0), threshold: 1.2 });
-        rayDirections.push({ angle: new THREE.Vector3(Math.sin(angle), -Math.cos(angle), 0), threshold: 1.2 });
+        const threshold = 1.2;
+        rayDirections.push({ angle: new THREE.Vector3(-Math.sin(angle), -Math.cos(angle), 0), threshold: threshold });
+        rayDirections.push({ angle: new THREE.Vector3(Math.sin(angle), -Math.cos(angle), 0), threshold: threshold });
     }
     
     // Get all meshes from gameObjects (filter out objects without meshes)
@@ -156,12 +137,14 @@ function isTouchingGround() {
     return false;
 }
 
-const gameControls = (camera, domElement, gameObjects, player) => {
+const gameControls = (camera, renderer, gameObjects, player) => {
 
     state.camera = camera;
-    state.domElement = domElement;
+    state.domElement = renderer.domElement;
     state.gameObjects = gameObjects;
     state.player = player;
+
+    const domElement = state.domElement;
 
     // Touch event variables
     let touchStartTime;
@@ -175,6 +158,18 @@ const gameControls = (camera, domElement, gameObjects, player) => {
     window.addEventListener("keyup", (e) => {
         setKeyState(e, false);
     });
+
+    // Prevent default touch behaviors for mobile controls
+    const canvas = renderer.domElement;
+    canvas.style.touchAction = 'none'; // Disable default touch actions like scrolling
+    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
+
+    // Also prevent on body to avoid pull-to-refresh
+    document.body.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    document.body.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    document.body.addEventListener('touchend', (e) => e.preventDefault(), { passive: false });
 
     // Touch event listeners
     domElement.addEventListener("touchstart", (e) => {
