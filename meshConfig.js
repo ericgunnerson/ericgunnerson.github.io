@@ -365,56 +365,131 @@ function getMeshesFromMap(mapIndex) {
   return configs;
 }
 
-const referenceTiles = [
-// this first one will be the thing that every border tile uses respectively
+const referenceTile =
 `
 ┌-┐
-| |
+|*|
 └-┘
+`
+
+const tiles = [
+`
+┌---┘ └--┐
+|   *    |
+┘        └
+          
+┐        ┌
+|-      -|
+|        |
+|-      -|
+|        |
+└---┐ ┌--┘
 `,
 `
-┌-----┐ ┌┐
+┌---┘ └--┐
+| - *    |
+┘     -- └
+          
+┐  ┌┐    ┌
+|  └┘   -|
 |        |
-└        |
-         |
-┌        ┘
-|         
-|        ┐
+|     ---|
 |        |
-|        |
-└--┘ └---┘
+└---┐ ┌--┘
 `,
 `
- - - - - -
-- - - - - 
- - - - - -
-- - - - - 
- - - - - -
-- - - - - 
- - - - - -
-- - - - - 
- - - - - -
-- - - - - 
+┌---┘ └--┐
+|   *    |
+┘  -- -- └
+          
+┐        ┌
+|  ----- |
+|        |
+| | -    |
+|      | |
+└---┐ ┌--┘
+`,
+`
+┌---┘ └--┐
+|   * -- |
+┘        └
+   ---    
+┐        ┌
+|    -  -|
+|      | |
+|  |     |
+|  |   | |
+└---┐ ┌--┘
+`,
+`
+┌---┘ └--┐
+|   *-   |
+┘  -     └
+     ┌-┐  
+┐        ┌
+|   -    |
+|        |
+| -      |
+|        |
+└---┐ ┌--┘
 `,
 ];
 
 function generateRandomizedMap(xTiles, yTiles) {
-  // randomly create a 2d array of chars from the strings in referenceTiles
-  // xTiles is the number of tiles in the horizontal direction,
-  // yTiles is the number of tiles in the vertical direction.
-  // each tile is 10x10 chars, except for the 0th tile in referenceTiles.
-  // the 0 tile is the edge/corner reference tile.
-  // if we are drawing the top left character for a given tile, use the top
-  // left tile of referenceTiles[0], same for top right, etc.
-  // If we are drawing the top edge (apart from either corner), use the top
-  // center of referenceTiles[0], same for the other edges respectively.
-  // other than that, we pick a random tile from referenceTiles[1] to [n-1]
-  // and use the values from that tile in the given tile for the 2d char array.
-  // return a string that separates each row of the array by a \n
+  // return a string that is comprised of a random assortment of tiles.
+  const tileHeight =  tiles[0].slice(1).slice(0,-1).split('\n').length;
+  console.log(`tileHeight is ${tileHeight}`);
+  const retRows = new Array(tileHeight * yTiles);
+
+  for (let y = 0; y < yTiles; y++) {
+    for (let x = 0; x < xTiles; x++) {
+      const myTileInd = Math.floor(Math.random() * tiles.length);
+      const myTile = tiles[myTileInd].slice(1).slice(0,-1);
+      console.log(`choosing tile ${myTileInd}`, myTile);
+      const tileRows = myTile.split('\n');
+      console.log(`the tile I'm on has ${tileRows.length} rows...`);
+      for (let i = 0; i < tileRows.length; i++) {
+        const retRowInd = y * tileHeight + i;
+        let thisTileRow = tileRows[i];
+        // top row: x = 0, y = 0, and i = 0;
+        if ( y == 0 && i == 0) {
+          thisTileRow = '-'.repeat(thisTileRow.length);
+          if (x == 0) {
+            thisTileRow = '┌' + thisTileRow.slice(1);
+          }
+          if (x == xTiles - 1) {
+            thisTileRow = thisTileRow.slice(0,-1) + '┐';
+          }
+        } else if (y == yTiles -1 && i == tileHeight - 1) {
+          thisTileRow = '-'.repeat(thisTileRow.length);
+          if (x == 0) {
+            thisTileRow = '└' + thisTileRow.slice(1);
+          }
+          if (x == xTiles - 1) {
+            thisTileRow = thisTileRow.slice(0,-1) + '┘';
+          }
+        } else {
+          if (x == 0) {
+            thisTileRow = '|' + thisTileRow.slice(1);
+          }
+          if (x == xTiles - 1) {
+            thisTileRow = thisTileRow.slice(0,-1) + '|';
+          }
+        }
+        retRows[retRowInd] = (x == 0 ? '' : retRows[retRowInd]) + thisTileRow;
+      }
+    }
+  }
+
+  console.log(`here is my thing:`);
+  console.log(retRows.join('\n'));
+
+  return retRows.join('\n');
+  
 }
 
 const maps = [
-generateRandomizedMap(10, 10),
+generateRandomizedMap(5, 5),
 `
 |                                                                                                                                           |
 |                                                                                                                                           |
