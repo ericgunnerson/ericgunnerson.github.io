@@ -73,7 +73,7 @@ const shapeMap = {
   '└': { type: 'ExtrudeGeometry', args: [], 
     points: [ q,q, q,t, p,t, p,p, t,p, t,q, q,q ],
     colliders: [
-      [ q,q, q,t, t,p, q,p, q,q ],
+      [ q,q, q,t, p,t, p,q, q,q ],
       [ q,p, p,p, p,t, q,t, q,p ]
     ]
   },
@@ -376,8 +376,8 @@ const tiles = [
 `
 ┌---┘ └--┐
 |   *    |
-┘        └
-          
+┘   ┬    └
+    |     
 ┐        ┌
 |-      -|
 |        |
@@ -387,8 +387,8 @@ const tiles = [
 `,
 `
 ┌---┘ └--┐
-| - *    |
-┘     -- └
+|   *    |
+┘ | - -- └
           
 ┐  ┌┐    ┌
 |  └┘   -|
@@ -411,8 +411,8 @@ const tiles = [
 `,
 `
 ┌---┘ └--┐
-|   * -- |
-┘        └
+|   *    |
+┘ |    - └
    ---    
 ┐        ┌
 |    -  -|
@@ -423,8 +423,8 @@ const tiles = [
 `,
 `
 ┌---┘ └--┐
-|   *-   |
-┘  -     └
+|   *    |
+┘ --     └
      ┌-┐  
 ┐        ┌
 |   -    |
@@ -434,6 +434,11 @@ const tiles = [
 └---┐ ┌--┘
 `,
 ];
+
+const cleanups = [
+  ['-|', '-┤'],
+  ['|-', '├-'],
+]
 
 function generateRandomizedMap(xTiles, yTiles) {
   // return a string that is comprised of a random assortment of tiles.
@@ -448,12 +453,13 @@ function generateRandomizedMap(xTiles, yTiles) {
       console.log(`choosing tile ${myTileInd}`, myTile);
       const tileRows = myTile.split('\n');
       console.log(`the tile I'm on has ${tileRows.length} rows...`);
+      
       for (let i = 0; i < tileRows.length; i++) {
         const retRowInd = y * tileHeight + i;
         let thisTileRow = tileRows[i];
         // top row: x = 0, y = 0, and i = 0;
         if ( y == 0 && i == 0) {
-          thisTileRow = '-'.repeat(thisTileRow.length);
+          thisTileRow = '┬' + '-'.repeat(thisTileRow.length-2) + '┬';
           if (x == 0) {
             thisTileRow = '┌' + thisTileRow.slice(1);
           }
@@ -461,7 +467,7 @@ function generateRandomizedMap(xTiles, yTiles) {
             thisTileRow = thisTileRow.slice(0,-1) + '┐';
           }
         } else if (y == yTiles -1 && i == tileHeight - 1) {
-          thisTileRow = '-'.repeat(thisTileRow.length);
+          thisTileRow = '┴' + '-'.repeat(thisTileRow.length-2) + '┴';
           if (x == 0) {
             thisTileRow = '└' + thisTileRow.slice(1);
           }
@@ -476,16 +482,28 @@ function generateRandomizedMap(xTiles, yTiles) {
             thisTileRow = thisTileRow.slice(0,-1) + '|';
           }
         }
+        if (i == 0) {
+          const nextRow = tileRows[i];
+          for (let n = 0; n < tileHeight; n++) {
+            if (nextRow[n] == '|') {
+              thisTileRow.slice(0, n) + '┬' + thisTileRow.slice(n + 1);
+            }
+          }
+        }
         retRows[retRowInd] = (x == 0 ? '' : retRows[retRowInd]) + thisTileRow;
       }
     }
   }
 
+  let retString = retRows.join('\n');
+  for (let pair of cleanups) {
+    retString = retString.replaceAll(pair[0], pair[1]);
+  }
   console.log(`here is my thing:`);
-  console.log(retRows.join('\n'));
+  console.log(retString);
 
-  return retRows.join('\n');
-  
+  return retString;
+
 }
 
 const maps = [
