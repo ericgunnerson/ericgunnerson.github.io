@@ -375,14 +375,14 @@ const referenceTile =
 const tiles = [
 `
 ┌---┘ └--┐
-|   *    |
+|   *  | |
 ┘   ┬    └
     |     
 ┐        ┌
 |-      -|
 |        |
 |-      -|
-|        |
+|  |     |
 └---┐ ┌--┘
 `,
 `
@@ -443,16 +443,16 @@ const cleanups = [
 function generateRandomizedMap(xTiles, yTiles) {
   // return a string that is comprised of a random assortment of tiles.
   const tileHeight =  tiles[0].slice(1).slice(0,-1).split('\n').length;
-  console.log(`tileHeight is ${tileHeight}`);
+  //console.log(`tileHeight is ${tileHeight}`);
   const retRows = new Array(tileHeight * yTiles);
 
   for (let y = 0; y < yTiles; y++) {
     for (let x = 0; x < xTiles; x++) {
       const myTileInd = Math.floor(Math.random() * tiles.length);
       const myTile = tiles[myTileInd].slice(1).slice(0,-1);
-      console.log(`choosing tile ${myTileInd}`, myTile);
+      //console.log(`choosing tile ${myTileInd}`, myTile);
       const tileRows = myTile.split('\n');
-      console.log(`the tile I'm on has ${tileRows.length} rows...`);
+      //console.log(`the tile I'm on has ${tileRows.length} rows...`);
       
       for (let i = 0; i < tileRows.length; i++) {
         const retRowInd = y * tileHeight + i;
@@ -483,10 +483,21 @@ function generateRandomizedMap(xTiles, yTiles) {
           }
         }
         if (i == 0) {
-          const nextRow = tileRows[i];
-          for (let n = 0; n < tileHeight; n++) {
+          const nextRow = tileRows[i+1];
+          for (let n = 1; n < tileHeight-1; n++) {
             if (nextRow[n] == '|') {
-              thisTileRow.slice(0, n) + '┬' + thisTileRow.slice(n + 1);
+              console.log(`this actually fired somehow... nextRow[n]??`);
+              thisTileRow = thisTileRow.slice(0, n) + '┬' + thisTileRow.slice(n + 1);
+            }
+          }
+        }
+        if (i == tileRows.length - 1) {
+          const lastRow = tileRows[i-1];
+          for (let n = 1; n < tileHeight-1; n++) {
+            if (lastRow[n] == '|') {
+              console.log(`bottom... lastRow: ${lastRow}, thisRow: ${thisTileRow}`);
+              thisTileRow = thisTileRow.slice(0,n) + '┴' + thisTileRow.slice(n + 1);
+              console.log(`after??? lastRow: ${lastRow}, thisRow: ${thisTileRow}`);
             }
           }
         }
