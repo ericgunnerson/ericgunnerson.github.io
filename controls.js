@@ -8,12 +8,14 @@ const state = {
     rightKey: false,
     upKey: false,
     downKey: false,
-    xImpluse: 0,
+    xImpulse: 0,
     yImpulse: 0,
     zImpulse: 0,
-    gravitySpeed: .02,
+    groundControl: 5,
+    airControl: 2,
     yMove: 0,
     moveSpeed: .3,
+    maxVel: 16,
     onGround: false,
     stepMode: true,
     canStep: true,
@@ -27,7 +29,11 @@ function update() {
         return;
     }
 
-    const movement = new THREE.Vector3(state.xImpulse, state.yImpulse, 0).multiplyScalar(state.moveSpeed);
+    const xVel = Math.abs(state.player.rigidBody.linvel().x);
+
+    const xImpulse = xVel >= state.maxVel ? 0 : state.xImpulse;
+
+    const movement = new THREE.Vector3(xImpulse, state.yImpulse, 0).multiplyScalar(state.moveSpeed);
     state.yImpulse = 0;
     state.player.rigidBody.applyImpulse(movement, true);
 
@@ -83,12 +89,12 @@ function stopMove() {
 
 function moveRight() {
     state.onGround = isTouchingGround();
-    state.xImpulse = state.onGround || state.xImpluse == 10 ? 10 : 1;
+    state.xImpulse = state.onGround || state.xImpulse == state.groundControl ? state.groundControl : state.airControl;
 }
 
 function moveLeft() {
     state.onGround = isTouchingGround();
-    state.xImpulse = state.onGround || state.xImpulse == -10 ? -10 : -1;
+    state.xImpulse = state.onGround || state.xImpulse == -state.groundControl ? -state.groundControl : -state.airControl;
 }
 
 function doJump() {
