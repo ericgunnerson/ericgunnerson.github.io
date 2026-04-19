@@ -12,10 +12,11 @@ const state = {
     yImpulse: 0,
     zImpulse: 0,
     groundControl: 5,
-    airControl: 2,
+    airControl: 3,
+    jumpPower: 400,
     yMove: 0,
     moveSpeed: .3,
-    maxVel: 16,
+    maxVel: 20,
     onGround: false,
     stepMode: true,
     canStep: true,
@@ -100,7 +101,7 @@ function moveLeft() {
 function doJump() {
     state.onGround = isTouchingGround();
     if ( state.onGround ) {
-        state.yImpulse = 300;
+        state.yImpulse = state.jumpPower;
     }
 }
 

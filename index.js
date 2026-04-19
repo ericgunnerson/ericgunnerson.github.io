@@ -98,7 +98,7 @@ async function initLights() {
 
 async function initPhysics() {
   await RAPIER.init();
-  world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+  world = new RAPIER.World({ x: 0, y: -9.81*1.9, z: 0 });
 }
 
 async function animate() {

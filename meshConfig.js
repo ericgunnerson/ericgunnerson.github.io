@@ -51,12 +51,27 @@ const b = 0, q = cellSize*.25, p = cellSize*.75, t = cellSize;
 
 
 const shapeMap = {
+  '1': { type: 'ExtrudeGeometry', args: [], 
+    points: [ b,q, b,p, t,t, t,q, b,q ] 
+  },
+  '2': { type: 'ExtrudeGeometry', args: [], 
+    points: [ b,q, b,t, t,p, t,q, b,q ] 
+  },
+  '3': { type: 'ExtrudeGeometry', args: [], 
+    points: [ b,b, t,q, t,b, b,b ] 
+  },
+  '5': { type: 'ExtrudeGeometry', args: [], 
+    points: [ b,b, b,q, t,p, t,b, b,b ] 
+  },
   '┌': { type: 'ExtrudeGeometry', args: [], 
     points: [ q,b, q,p, t,p, t,q, p,q, p,b, q,b ],
     colliders: [
       [ q,b, p,b, p,q, q,q, q,b ],
       [ q,q, t,q, t,p, q,p, q,q ]
     ]
+  },
+  '_': { type: 'ExtrudeGeometry', args: [], 
+    points: [ b,q, b,t, t,t, t,q, b,q ] 
   },
   '-': { type: 'ExtrudeGeometry', args: [], 
     points: [ b,q, b,p, t,p, t,q, b,q ] 
@@ -365,13 +380,6 @@ function getMeshesFromMap(mapIndex) {
   return configs;
 }
 
-const referenceTile =
-`
-┌-┐
-|*|
-└-┘
-`
-
 const tiles = [
 `
 ┌------------------┐
@@ -390,8 +398,8 @@ const tiles = [
 |  |           -|  |
 |  |-           |  |
 |  |           -|  |
-|               |  |
-|  -------------┘  |
+|       35_     |  |
+|  ----1___2-12-┘  |
 |*                 |
 └------------------┘
 `,
