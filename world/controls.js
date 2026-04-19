@@ -11,6 +11,8 @@ const state = {
     rightKey: false,
     upKey: false,
     downKey: false,
+    impulse: 0,
+    orbitImpulse: 0,
     xImpulse: 0,
     yImpulse: 0,
     zImpulse: 0,
@@ -19,6 +21,7 @@ const state = {
     jumpPower: 400,
     yMove: 0,
     moveSpeed: .3,
+    orbitSpeed: .04,
     maxVel: 20,
     onGround: false,
     stepMode: true,
@@ -31,8 +34,8 @@ function followPlayer() {
         return;
     }
 
-    const radius = 5;
-    const orbitSpeed = 0.02;
+    const radius = 10;
+    const orbitSpeed = state.orbitSpeed * state.orbitImpulse;
     const playerPosition = state.player.position.clone();
 
     if (playerPosition.lengthSq() === 0) {
@@ -53,7 +56,16 @@ function followPlayer() {
         .multiplyScalar(radius);
 
     state.camera.position.copy(playerPosition).add(orbitOffset);
+    state.camera.up.copy(axis);
     state.camera.lookAt(state.player.position);
+}
+
+function getSpeed(velocity) {
+    // Example in 3D
+    const speed = Math.sqrt(
+    velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2
+    );
+    return speed;
 }
 
 function update() {
@@ -63,11 +75,15 @@ function update() {
         return;
     }
 
-    const xVel = Math.abs(state.player.rigidBody.linvel().x);
+    const speed = Math.abs( getSpeed( state.player.rigidBody.linvel() ) );
 
-    const xImpulse = xVel >= state.maxVel ? 0 : state.xImpulse;
+    const impulse = speed >= state.maxVel ? 0 : state.impulse;
 
-    const movement = new THREE.Vector3(xImpulse, 0, 0).multiplyScalar(state.moveSpeed);
+    const cameraToPlayer = new THREE.Vector3().subVectors(
+        state.player.position,
+        state.camera.position
+        ).normalize();
+    const movement = cameraToPlayer.multiplyScalar(state.moveSpeed * impulse);
     state.player.rigidBody.applyImpulse(movement, true);
 
     if (state.yImpulse > 0) {
@@ -104,17 +120,26 @@ function setKeyState(e, keyState) {
     }
 
     if (state.leftKey) {
-        moveLeft();
+        orbitLeft();
     } else if (state.rightKey) {
-        moveRight();
+        orbitRight();
     } else {
-        stopMove();
+        stopOrbit();
+    }
+
+    if (e.key == ' ') {
+        if (keyState) {
+            doJump();
+        } else {
+            stopJump();
+        }
     }
 
     if (state.upKey) {
-        doJump();
+        moveForward();
     } else {
-        stopJump();
+        stopMove();
+        //stopJump();
     }
 }
 
@@ -123,17 +148,24 @@ function stopJump() {
 }
 
 function stopMove() {
-    state.xImpulse = 0;
+    state.impulse = 0;
 }
 
-function moveRight() {
+function moveForward() {
     state.onGround = isTouchingGround();
-    state.xImpulse = state.onGround || state.xImpulse == state.groundControl ? state.groundControl : state.airControl;
+    state.impulse = state.onGround || state.impulse == state.groundControl ? state.groundControl : state.airControl;
 }
 
-function moveLeft() {
-    state.onGround = isTouchingGround();
-    state.xImpulse = state.onGround || state.xImpulse == -state.groundControl ? -state.groundControl : -state.airControl;
+function orbitLeft() {
+    state.orbitImpulse = -1;
+}
+
+function orbitRight() {
+    state.orbitImpulse = 1;
+}
+
+function stopOrbit() {
+    state.orbitImpulse = 0;
 }
 
 function doJump() {
@@ -228,9 +260,9 @@ const gameControls = (camera, renderer, player, earth) => {
         if (Math.abs(deltaX) > moveThreshold) {
             isMoving = true;
             if (deltaX > 0) {
-                moveRight();
+                orbitRight();
             } else {
-                moveLeft();
+                orbitLeft();
             }
         }
     });
@@ -238,7 +270,7 @@ const gameControls = (camera, renderer, player, earth) => {
     domElement.addEventListener("touchend", (e) => {
         e.preventDefault();
         if (isMoving) {
-            stopMove();
+            stopOrbit();
         } else {
             doJump();
         }
