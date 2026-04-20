@@ -43,18 +43,25 @@ function followPlayer() {
     }
 
     const axis = playerPosition.clone().normalize();
-    const startPoint = new THREE.Vector3(0, 1, 0);
-    if (Math.abs(axis.y) > 0.9) {
-        startPoint.set(1, 0, 0);
+    const offset = state.camera.position.clone().sub(playerPosition);
+
+    let orbitOffset;
+    if (offset.lengthSq() < 1e-6) {
+        const startPoint = Math.abs(axis.y) > 0.999 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+        orbitOffset = new THREE.Vector3().crossVectors(axis, startPoint).normalize().multiplyScalar(radius);
+    } else {
+        const parallel = axis.clone().multiplyScalar(offset.dot(axis));
+        const perp = offset.clone().sub(parallel);
+
+        if (perp.lengthSq() < 1e-6) {
+            const startPoint = Math.abs(axis.y) > 0.999 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+            perp.copy(new THREE.Vector3().crossVectors(axis, startPoint));
+        }
+
+        orbitOffset = perp.normalize().multiplyScalar(radius);
     }
 
-    const orthoVector = new THREE.Vector3().crossVectors(axis, startPoint).normalize();
-    state.cameraOrbitAngle += orbitSpeed;
-
-    const orbitOffset = orthoVector
-        .applyAxisAngle(axis, state.cameraOrbitAngle)
-        .multiplyScalar(radius);
-
+    orbitOffset.applyAxisAngle(axis, orbitSpeed);
     state.camera.position.copy(playerPosition).add(orbitOffset);
     state.camera.up.copy(axis);
     state.camera.lookAt(state.player.position);
@@ -92,9 +99,6 @@ function update() {
         
         state.yImpulse = 0;
     }
-    // lock movement on z axis
-    const newPos = state.player.rigidBody.translation();
-    state.player.rigidBody.setTranslation({ x: newPos.x, y: newPos.y, z: 0.0 }, true);
 }
 
 function setKeyState(e, keyState) {
@@ -157,11 +161,11 @@ function moveForward() {
 }
 
 function orbitLeft() {
-    state.orbitImpulse = -1;
+    state.orbitImpulse = 1;
 }
 
 function orbitRight() {
-    state.orbitImpulse = 1;
+    state.orbitImpulse = -1;
 }
 
 function stopOrbit() {

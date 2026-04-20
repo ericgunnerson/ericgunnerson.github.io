@@ -2,9 +2,9 @@ import * as THREE from "three";
 import { GameControls } from './controls.js';
 import * as RAPIER from "@dimforge/rapier3d";
 
-const earthSize = 15;
+const earthSize = 50;
 const meshConfigs = [];
-const playerStart = new THREE.Vector3(0, 20, 0);
+const playerStart = new THREE.Vector3(0, earthSize + 5, 0);
 const w = window.innerWidth;
 const h = window.innerHeight;
 const collections = {
@@ -83,7 +83,7 @@ async function initMeshes() {
 
   player.rigidBody.setTranslation({ x: playerStart.x, y: playerStart.y, z: 0.0 }, true);
 
-  const earthGeo = new THREE.SphereGeometry( earthSize, 32, 16 );
+  const earthGeo = new THREE.IcosahedronGeometry( earthSize, 10 );
   const earthMat = new THREE.MeshStandardMaterial( { color: 0x0000ff, roughness: .2, metalness: .2 } );
   earth = new THREE.Mesh( earthGeo, earthMat );
   earth.visible = true;
@@ -97,8 +97,6 @@ async function initMeshes() {
   earth.add(wireframe);
 
   scene.add( earth );
-  box = new THREE.BoxHelper( player, 0xffff00 );
-  scene.add( box );
 
   // Create Rapier rigidbody for earth
   const earthRigidBody = RAPIER.RigidBodyDesc.fixed();
@@ -119,7 +117,8 @@ async function animate() {
   // Sync player mesh with physics rigidbody
   player.position.copy(player.rigidBody.translation());
   player.quaternion.copy(player.rigidBody.rotation());
-  box.update();
+  //console.log(player.position);
+  
   if (controls.followPlayer) {
     controls.followPlayer();
   }
