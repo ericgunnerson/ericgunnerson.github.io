@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GameControls } from './controls.js';
 import * as RAPIER from "@dimforge/rapier3d";
 
-const earthSize = 50;
+const earthSize = 500;
 const meshConfigs = [];
 const playerStart = new THREE.Vector3(0, earthSize + 5, 0);
 const w = window.innerWidth;
@@ -102,7 +102,10 @@ async function initMeshes() {
   const earthRigidBody = RAPIER.RigidBodyDesc.fixed();
   earth.rigidBody = world.createRigidBody(earthRigidBody);
   earth.rigidBody.setTranslation(sphere.position, true);
-  const earthColliderDesc = RAPIER.ColliderDesc.ball(earthSize);
+  // Access the geometry's position attribute
+  const earthPos = earth.geometry.attributes.position.array;
+  const earthColliderDesc = RAPIER.ColliderDesc.convexHull(earthPos);
+  //const earthColliderDesc = RAPIER.ColliderDesc.ball(earthSize);
   earth.collider = world.createCollider(earthColliderDesc, earth.rigidBody);
 }
 

@@ -141,6 +141,8 @@ function setKeyState(e, keyState) {
 
     if (state.upKey) {
         moveForward();
+    } else if (state.downKey) {
+        moveBackward();
     } else {
         stopMove();
         //stopJump();
@@ -158,6 +160,11 @@ function stopMove() {
 function moveForward() {
     state.onGround = isTouchingGround();
     state.impulse = state.onGround || state.impulse == state.groundControl ? state.groundControl : state.airControl;
+}
+
+function moveBackward() {
+    state.onGround = isTouchingGround();
+    state.impulse = state.onGround || state.impulse == -state.groundControl ? -state.groundControl : -state.airControl;
 }
 
 function orbitLeft() {
@@ -228,6 +235,7 @@ const gameControls = (camera, renderer, player, earth) => {
     // Touch event variables
     let touchStartTime;
     let touchStartX;
+    let touchStartY;
     let isMoving = false;
     const moveThreshold = 10; // pixels
 
@@ -255,18 +263,27 @@ const gameControls = (camera, renderer, player, earth) => {
         e.preventDefault();
         touchStartTime = Date.now();
         touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
         isMoving = false;
     });
 
     domElement.addEventListener("touchmove", (e) => {
         e.preventDefault();
         const deltaX = e.touches[0].clientX - touchStartX;
+        const deltaY = e.touches[0].clientY - touchStartY;
         if (Math.abs(deltaX) > moveThreshold) {
             isMoving = true;
             if (deltaX > 0) {
                 orbitRight();
             } else {
                 orbitLeft();
+            }
+        } else if (Math.abs(deltaY) > moveThreshold) {
+            isMoving = true;
+            if (deltaY < 0) {
+                moveForward();
+            } else {
+                moveBackward();
             }
         }
     });
@@ -275,6 +292,7 @@ const gameControls = (camera, renderer, player, earth) => {
         e.preventDefault();
         if (isMoving) {
             stopOrbit();
+            stopMove();
         } else {
             doJump();
         }
