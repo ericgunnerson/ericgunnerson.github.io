@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import * as THREE from "three/nodes";
 
 const state = {
     gameObjects: [],
@@ -11,7 +11,11 @@ const state = {
     rightKey: false,
     upKey: false,
     downKey: false,
+    impulseF: 0,
+    impulseR: 0,
     impulse: 0,
+    orbitImpulseL: 0,
+    orbitImpulseR: 0,
     orbitImpulse: 0,
     xImpulse: 0,
     yImpulse: 0,
@@ -30,6 +34,24 @@ const state = {
 }
 
 function followPlayer() {
+
+    const start = new THREE.Vector3(0, 0, 0);
+    const end   = state.player.position.clone();
+    const axis = end.clone().normalize();
+
+    
+    const player = state.player;
+
+    player.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), axis);
+    player.camRig.rotateOnAxis(new THREE.Vector3(0,0,1), (state.orbitImpulseL + state.orbitImpulseR) * -.01);
+
+    state.camera.up.copy(axis);
+    state.camera.lookAt(state.player.position);
+
+
+}
+
+function followPlayerzzz() {
     if (!state.player || !state.camera) {
         return;
     }
@@ -62,7 +84,7 @@ function followPlayer() {
     }
 
     orbitOffset.applyAxisAngle(axis, orbitSpeed);
-    state.camera.position.copy(playerPosition).add(orbitOffset);
+    state.camera.position.copy(playerPosition.clone().addScalar(4)).add(orbitOffset);
     state.camera.up.copy(axis);
     state.camera.lookAt(state.player.position);
 }
@@ -70,118 +92,113 @@ function followPlayer() {
 function getSpeed(velocity) {
     // Example in 3D
     const speed = Math.sqrt(
-    velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2
+        velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2
     );
     return speed;
 }
 
+let tickCounter = 0;
 function update() {
+    tickCounter += tickCounter == 30 ? -30 : 1;
+    if (tickCounter == 0) {
+        console.log(`tick`);
+    }
 
     if (!state.player || !state.player.rigidBody) {
         console.log(`no player body YET`);
         return;
     }
 
-    const speed = Math.abs( getSpeed( state.player.rigidBody.linvel() ) );
+    const speed = 0;// Math.abs( getSpeed( state.player.rigidBody.linvel() ) );
+
+    state.impulse = (state.impulseF + state.impulseR) * state.groundControl;
 
     const impulse = speed >= state.maxVel ? 0 : state.impulse;
 
+    const playerPos = new THREE.Vector3();
+    const cameraPos = new THREE.Vector3();
+
+    state.player.getWorldPosition(playerPos);
+    state.camera.getWorldPosition(cameraPos);
+
     const cameraToPlayer = new THREE.Vector3().subVectors(
-        state.player.position,
-        state.camera.position
+        playerPos,
+        cameraPos
         ).normalize();
+
     const movement = cameraToPlayer.multiplyScalar(state.moveSpeed * impulse);
     state.player.rigidBody.applyImpulse(movement, true);
 
     if (state.yImpulse > 0) {
-        const jumpDir = state.player.position.clone().normalize(). multiplyScalar(150);
+        const jumpDir = state.player.position.clone().normalize().multiplyScalar(150);
         state.player.rigidBody.applyImpulse(jumpDir, true);
         
         state.yImpulse = 0;
     }
 }
 
-function setKeyState(e, keyState) {
+function setKeyState(e, isKeyDown) {
+    isTouchingGround();
     switch (e.key) {
         case 'ArrowLeft':
-            state.leftKey = keyState;
+            setOrbitL(isKeyDown);
             break;
         case 'ArrowRight':
-            state.rightKey = keyState;
+            setMoveF(isKeyDown);
             break;
         case 'ArrowUp':
-            if (keyState) {
-                state.upKey = true;
-            } else {
-                state.upKey = false;
-            }
             break;
         case 'ArrowDown':
-            state.downKey = keyState;
+            setMoveR(isKeyDown);
+            break;
+        case ' ':
+            if (isKeyDown) {
+                doJump();
+            } else {
+                stopJump();
+            }
             break;
         default:
             doNothing();
-    }
-
-    if (state.leftKey) {
-        orbitLeft();
-    } else if (state.rightKey) {
-        orbitRight();
-    } else {
-        stopOrbit();
-    }
-
-    if (e.key == ' ') {
-        if (keyState) {
-            doJump();
-        } else {
-            stopJump();
-        }
-    }
-
-    if (state.upKey) {
-        moveForward();
-    } else if (state.downKey) {
-        moveBackward();
-    } else {
-        stopMove();
-        //stopJump();
+            break;
     }
 }
 
-function stopJump() {
-    state.yImpulse = 0;
+function setMoveF(isOn) {
+    state.impulseF = isOn ? 1 : 0;
+}
+
+function setMoveR(isOn) {
+    state.impulseR = isOn ? 1 : 0;
+}
+
+function setOrbitR(isOn) {
+    state.orbitImpulseR = isOn ? 1 : 0;
+}
+
+function setOrbitL(isOn) {
+    state.orbitImpulseL = isOn ? -1 : 0;
 }
 
 function stopMove() {
-    state.impulse = 0;
-}
-
-function moveForward() {
-    state.onGround = isTouchingGround();
-    state.impulse = state.onGround || state.impulse == state.groundControl ? state.groundControl : state.airControl;
-}
-
-function moveBackward() {
-    state.onGround = isTouchingGround();
-    state.impulse = state.onGround || state.impulse == -state.groundControl ? -state.groundControl : -state.airControl;
-}
-
-function orbitLeft() {
-    state.orbitImpulse = 1;
-}
-
-function orbitRight() {
-    state.orbitImpulse = -1;
+    setMoveF(false);
+    setMoveR(false);
 }
 
 function stopOrbit() {
-    state.orbitImpulse = 0;
+    setOrbitL(false);
+    setOrbitR(false);
+}
+
+function stopJump() {
+    console.log(`stopJump`);
+    state.yImpulse = 0;
 }
 
 function doJump() {
-    state.onGround = isTouchingGround();
+    console.log(`doJump`);
     if ( state.onGround ) {
+        console.log(`doJump onGround`);
         state.yImpulse = state.jumpPower;
     }
 }
@@ -191,16 +208,18 @@ function doNothing() {
 }
 
 function isTouchingGround() {
-    // Cast some sweeping rays beneath the player.
-    // Check if any intersect within their respective thresholds
+
+    const playerPosition = state.player.position.clone();
+    const axis = playerPosition.clone().normalize().negate();
     
     const raycaster = state.raycaster;
     const rayOrigin = state.player.position;
     
     const rayDirections = [
-        { angle: new THREE.Vector3(0, -1, 0), threshold: 1.1 }
+        { angle: axis, threshold: 1.1 }
     ];
-    for (let i = .2; i <= 45; i+=.2) {
+    const step = 12; // kill this for now
+    for (let i = step; i <= 10; i+=step) {
         const angle = i * Math.PI / 180;
         const threshold = 1.2;
         rayDirections.push({ angle: new THREE.Vector3(-Math.sin(angle), -Math.cos(angle), 0), threshold: threshold });
@@ -216,10 +235,12 @@ function isTouchingGround() {
         const intersections = raycaster.intersectObjects(meshes);
         
         if (intersections.length > 0 && intersections[0].distance <= rayDirections[i].threshold) {
+            state.onGround = true;
             return true;
         }
     }
     
+    state.onGround = false;
     return false;
 }
 
@@ -274,22 +295,23 @@ const gameControls = (camera, renderer, player, earth) => {
         if (Math.abs(deltaX) > moveThreshold) {
             isMoving = true;
             if (deltaX > 0) {
-                orbitRight();
+                setOrbitR(true);
             } else {
-                orbitLeft();
+                setOrbitL(true);
             }
         } else if (Math.abs(deltaY) > moveThreshold) {
             isMoving = true;
             if (deltaY < 0) {
-                moveForward();
+                setMoveF(true);
             } else {
-                moveBackward();
+                setMoveR(true);
             }
         }
     });
 
     domElement.addEventListener("touchend", (e) => {
         e.preventDefault();
+        isTouchingGround();
         if (isMoving) {
             stopOrbit();
             stopMove();

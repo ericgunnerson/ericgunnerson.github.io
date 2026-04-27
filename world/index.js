@@ -1,4 +1,5 @@
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
+import * as TSL from "three/tsl";
 import { GameControls } from './controls.js';
 import * as RAPIER from "@dimforge/rapier3d";
 
@@ -11,10 +12,11 @@ const collections = {
   meshes: [],
   lights: [],
 };
-let renderer, camera, scene, controls, player, box, earth, world;
+let renderer, camera, scene, controls, player, playerSphere, box, earth, world;
 
 async function initRenderer() {
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGPURenderer({ antialias: true, alpha: false });
+  await renderer.init();
   renderer.setSize(w, h);
   document.body.appendChild(renderer.domElement);
 }
@@ -25,9 +27,10 @@ async function initCamera() {
   const near = 0.1;
   const far = 10000;
   camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-  camera.position.z = 5;
-  camera.position.y = -.5;
+
+  camera.position.set(0, -5, 2);
   camera.lookAt(player.position);
+  player.camRig.add(camera);
 }
 
 window.addEventListener('resize', onWindowResize, false);
@@ -68,11 +71,19 @@ async function initPhysics() {
 async function initMeshes() {
 
   const geometry = new THREE.SphereGeometry( 1, 32, 16 );
-  const material = new THREE.MeshStandardMaterial( { color: 0xff0000, roughness: .2, metalness: .2 } );
-  const sphere = new THREE.Mesh( geometry, material );
+  const playerMaterial = new THREE.MeshStandardNodeMaterial();
+  playerMaterial.colorNode = TSL.vec3( TSL.color( 0xff0000 ) );
+  playerMaterial.roughnessNode = TSL.float( 0.2 );
+  playerMaterial.metalnessNode = TSL.float( 0.2 );
+  const sphere = new THREE.Mesh( geometry, playerMaterial );
   sphere.visible = true;
   scene.add( sphere );
-  player = sphere;
+  player = new THREE.Object3D();
+  scene.add( player );
+  const camRig = new THREE.Object3D();
+  player.add(camRig);
+  player.camRig = camRig;
+  playerSphere = sphere;
 
   // Create Rapier dynamic rigidbody for player
   const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic().setLinearDamping(0.6);;
@@ -83,8 +94,11 @@ async function initMeshes() {
 
   player.rigidBody.setTranslation({ x: playerStart.x, y: playerStart.y, z: 0.0 }, true);
 
-  const earthGeo = new THREE.IcosahedronGeometry( earthSize, 10 );
-  const earthMat = new THREE.MeshStandardMaterial( { color: 0x0000ff, roughness: .2, metalness: .2 } );
+  const earthGeo = new THREE.IcosahedronGeometry( earthSize, 30 );
+  const earthMat = new THREE.MeshStandardNodeMaterial();
+  earthMat.colorNode = TSL.vec3( TSL.color( 0x0000ff ) );
+  earthMat.roughnessNode = TSL.float( 0.2 );
+  earthMat.metalnessNode = TSL.float( 0.2 );
   earth = new THREE.Mesh( earthGeo, earthMat );
   earth.visible = true;
     
@@ -107,6 +121,8 @@ async function initMeshes() {
   const earthColliderDesc = RAPIER.ColliderDesc.convexHull(earthPos);
   //const earthColliderDesc = RAPIER.ColliderDesc.ball(earthSize);
   earth.collider = world.createCollider(earthColliderDesc, earth.rigidBody);
+
+
 }
 
 async function animate() {
@@ -119,7 +135,8 @@ async function animate() {
   world.step();
   // Sync player mesh with physics rigidbody
   player.position.copy(player.rigidBody.translation());
-  player.quaternion.copy(player.rigidBody.rotation());
+  playerSphere.position.copy(player.rigidBody.translation());
+  playerSphere.quaternion.copy(player.rigidBody.rotation());
   //console.log(player.position);
   
   if (controls.followPlayer) {
