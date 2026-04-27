@@ -169,7 +169,7 @@ function setMoveF(isOn) {
 }
 
 function setMoveR(isOn) {
-    state.impulseR = isOn ? 1 : 0;
+    state.impulseR = isOn ? -1 : 0;
 }
 
 function setOrbitR(isOn) {
@@ -258,7 +258,7 @@ const gameControls = (camera, renderer, player, earth) => {
     let touchStartX;
     let touchStartY;
     let isMoving = false;
-    const moveThreshold = 10; // pixels
+    const moveThreshold = 20; // pixels
 
     window.addEventListener("keydown", (e) => {
         setKeyState(e, true);
