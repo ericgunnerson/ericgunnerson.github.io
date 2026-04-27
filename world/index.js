@@ -94,9 +94,27 @@ async function initMeshes() {
 
   player.rigidBody.setTranslation({ x: playerStart.x, y: playerStart.y, z: 0.0 }, true);
 
-  const earthGeo = new THREE.IcosahedronGeometry( earthSize, 30 );
+  let earthGeo = new THREE.IcosahedronGeometry( earthSize, 30 );
+  earthGeo = earthGeo.toNonIndexed();
+
+  const earthColors = new Float32Array( earthGeo.attributes.position.count * 3 );
+  for ( let i = 0; i < earthColors.length; i += 9 ) {
+    const color = new THREE.Color( Math.random(), Math.random(), Math.random() );
+    earthColors[ i + 0 ] = color.r;
+    earthColors[ i + 1 ] = color.g;
+    earthColors[ i + 2 ] = color.b;
+    earthColors[ i + 3 ] = color.r;
+    earthColors[ i + 4 ] = color.g;
+    earthColors[ i + 5 ] = color.b;
+    earthColors[ i + 6 ] = color.r;
+    earthColors[ i + 7 ] = color.g;
+    earthColors[ i + 8 ] = color.b;
+  }
+  earthGeo.setAttribute( 'color', new THREE.BufferAttribute( earthColors, 3 ) );
+
   const earthMat = new THREE.MeshStandardNodeMaterial();
-  earthMat.colorNode = TSL.vec3( TSL.color( 0x0000ff ) );
+  earthMat.vertexColors = true;
+  earthMat.colorNode = TSL.attribute( 'color' );
   earthMat.roughnessNode = TSL.float( 0.2 );
   earthMat.metalnessNode = TSL.float( 0.2 );
   earth = new THREE.Mesh( earthGeo, earthMat );
@@ -119,7 +137,6 @@ async function initMeshes() {
   // Access the geometry's position attribute
   const earthPos = earth.geometry.attributes.position.array;
   const earthColliderDesc = RAPIER.ColliderDesc.convexHull(earthPos);
-  //const earthColliderDesc = RAPIER.ColliderDesc.ball(earthSize);
   earth.collider = world.createCollider(earthColliderDesc, earth.rigidBody);
 
 

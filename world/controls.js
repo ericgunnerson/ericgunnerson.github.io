@@ -144,7 +144,7 @@ function setKeyState(e, isKeyDown) {
             setOrbitL(isKeyDown);
             break;
         case 'ArrowRight':
-            setMoveF(isKeyDown);
+            setOrbitR(isKeyDown);
             break;
         case 'ArrowUp':
             setMoveF(isKeyDown);
