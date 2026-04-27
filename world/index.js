@@ -3,7 +3,7 @@ import * as TSL from "three/tsl";
 import { GameControls } from './controls.js';
 import * as RAPIER from "@dimforge/rapier3d";
 
-const earthSize = 500;
+const earthSize = 1000;
 const meshConfigs = [];
 const playerStart = new THREE.Vector3(0, earthSize + 5, 0);
 const w = window.innerWidth;
@@ -28,7 +28,7 @@ async function initCamera() {
   const far = 10000;
   camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 
-  camera.position.set(0, -5, 2);
+  camera.position.set(0, -10, 2);
   camera.lookAt(player.position);
   player.camRig.add(camera);
 }

@@ -147,6 +147,7 @@ function setKeyState(e, isKeyDown) {
             setMoveF(isKeyDown);
             break;
         case 'ArrowUp':
+            setMoveF(isKeyDown);
             break;
         case 'ArrowDown':
             setMoveR(isKeyDown);
