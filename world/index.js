@@ -2,10 +2,14 @@ import * as THREE from "three/webgpu";
 import * as TSL from "three/tsl";
 import { GameControls } from './controls.js';
 import * as RAPIER from "@dimforge/rapier3d";
+import { bloom } from 'jsm/bloom';
 
+
+const playerSize = 1;
 const earthSize = 1000;
+const earthDetail = 20;
 const meshConfigs = [];
-const playerStart = new THREE.Vector3(0, earthSize + 5, 0);
+const playerStart = new THREE.Vector3(0, earthSize + playerSize, 0);
 const w = window.innerWidth;
 const h = window.innerHeight;
 const collections = {
@@ -18,7 +22,11 @@ async function initRenderer() {
   renderer = new THREE.WebGPURenderer({ antialias: true, alpha: false });
   await renderer.init();
   renderer.setSize(w, h);
+
+  //renderer.toneMapping = THREE.ReinhardToneMapping;
+
   document.body.appendChild(renderer.domElement);
+
 }
 
 async function initCamera() {
@@ -31,6 +39,22 @@ async function initCamera() {
   camera.position.set(0, -10, 2);
   camera.lookAt(player.position);
   player.camRig.add(camera);
+
+  // // tryna bloom...
+  // const renderPipeline = new THREE.RenderPipeline( renderer );
+
+  // const scenePass = TSL.pass( scene, camera );
+  // const scenePassColor = scenePass.getTextureNode( 'output' );
+
+  // const bloomPass = bloom( scenePassColor );
+
+  // renderPipeline.outputNode = scenePassColor.add( bloomPass );
+
+
+  // bloomPass.threshold.value = 0.0;
+  // bloomPass.strength.value = 3.0;
+  // bloomPass.radius.value = 1.0;
+  // renderer.toneMappingExposure = Math.pow( 1.1, 4.0 );
 }
 
 window.addEventListener('resize', onWindowResize, false);
@@ -70,9 +94,27 @@ async function initPhysics() {
 
 async function initMeshes() {
 
-  const geometry = new THREE.SphereGeometry( 1, 32, 16 );
+  const geometry = new THREE.IcosahedronGeometry( playerSize, 2 );
+  const geoColors = new Float32Array( geometry.attributes.position.count * 3 );
+  let isEven = true;
+  for ( let i = 0; i < geoColors.length; i += 9 ) {
+    const color = new THREE.Color( 0, isEven ? 1 : 0, 0 );
+    isEven = !isEven;
+    geoColors[ i + 0 ] = color.r;
+    geoColors[ i + 1 ] = color.g;
+    geoColors[ i + 2 ] = color.b;
+    geoColors[ i + 3 ] = color.r;
+    geoColors[ i + 4 ] = color.g;
+    geoColors[ i + 5 ] = color.b;
+    geoColors[ i + 6 ] = color.r;
+    geoColors[ i + 7 ] = color.g;
+    geoColors[ i + 8 ] = color.b;
+  }
+  geometry.setAttribute( 'color', new THREE.BufferAttribute( geoColors, 3 ) );
+  
   const playerMaterial = new THREE.MeshStandardNodeMaterial();
-  playerMaterial.colorNode = TSL.vec3( TSL.color( 0xff0000 ) );
+  playerMaterial.vertexColors = true;
+  playerMaterial.colorNode = TSL.attribute( 'color' );
   playerMaterial.roughnessNode = TSL.float( 0.2 );
   playerMaterial.metalnessNode = TSL.float( 0.2 );
   const sphere = new THREE.Mesh( geometry, playerMaterial );
@@ -89,13 +131,18 @@ async function initMeshes() {
   const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic().setLinearDamping(0.6);;
   player.rigidBody = world.createRigidBody(rigidBodyDesc);
   player.rigidBody.setTranslation(sphere.position, true);
-  const colliderDesc = RAPIER.ColliderDesc.ball(1);
+
+  
+  const playerPos = playerSphere.geometry.attributes.position.array;
+
+  const pColliderDesc = RAPIER.ColliderDesc.convexHull(playerPos);
+  const colliderDesc = RAPIER.ColliderDesc.ball(playerSize);
+
   player.collider = world.createCollider(colliderDesc, player.rigidBody);
 
   player.rigidBody.setTranslation({ x: playerStart.x, y: playerStart.y, z: 0.0 }, true);
 
-  let earthGeo = new THREE.IcosahedronGeometry( earthSize, 30 );
-  earthGeo = earthGeo.toNonIndexed();
+  let earthGeo = new THREE.IcosahedronGeometry( earthSize, earthDetail );
 
   const earthColors = new Float32Array( earthGeo.attributes.position.count * 3 );
   for ( let i = 0; i < earthColors.length; i += 9 ) {
@@ -133,7 +180,6 @@ async function initMeshes() {
   // Create Rapier rigidbody for earth
   const earthRigidBody = RAPIER.RigidBodyDesc.fixed();
   earth.rigidBody = world.createRigidBody(earthRigidBody);
-  earth.rigidBody.setTranslation(sphere.position, true);
   // Access the geometry's position attribute
   const earthPos = earth.geometry.attributes.position.array;
   const earthColliderDesc = RAPIER.ColliderDesc.convexHull(earthPos);
@@ -154,7 +200,6 @@ async function animate() {
   player.position.copy(player.rigidBody.translation());
   playerSphere.position.copy(player.rigidBody.translation());
   playerSphere.quaternion.copy(player.rigidBody.rotation());
-  //console.log(player.position);
   
   if (controls.followPlayer) {
     controls.followPlayer();

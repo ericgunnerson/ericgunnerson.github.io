@@ -22,11 +22,11 @@ const state = {
     zImpulse: 0,
     groundControl: 5,
     airControl: 3,
-    jumpPower: 400,
+    jumpPower: 200,
     yMove: 0,
     moveSpeed: .3,
     orbitSpeed: .04,
-    maxVel: 20,
+    maxVel: 8,
     onGround: false,
     stepMode: true,
     canStep: true,
@@ -39,54 +39,26 @@ function followPlayer() {
     const end   = state.player.position.clone();
     const axis = end.clone().normalize();
 
-    
     const player = state.player;
 
     player.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), axis);
-    player.camRig.rotateOnAxis(new THREE.Vector3(0,0,1), (state.orbitImpulseL + state.orbitImpulseR) * -.01);
+    player.camRig.rotateOnAxis(new THREE.Vector3(0,0,1), (state.orbitImpulseL + state.orbitImpulseR) * -state.orbitSpeed);
 
     state.camera.up.copy(axis);
     state.camera.lookAt(state.player.position);
-
-
 }
 
-function followPlayerzzz() {
-    if (!state.player || !state.camera) {
-        return;
-    }
+function getHorizontalSpeed(velocity) {
 
-    const radius = 10;
-    const orbitSpeed = state.orbitSpeed * state.orbitImpulse;
-    const playerPosition = state.player.position.clone();
+    const up = state.player.up;         // object's local up direction (should be normalized)
 
-    if (playerPosition.lengthSq() === 0) {
-        return;
-    }
+    // Make a copy if you don't want to modify the original velocity
+    const horizontalVelocity = new THREE.Vector3(velocity.x, velocity.y, velocity.z);
 
-    const axis = playerPosition.clone().normalize();
-    const offset = state.camera.position.clone().sub(playerPosition);
+    // This removes the component along the up vector
+    horizontalVelocity.projectOnPlane(up);
 
-    let orbitOffset;
-    if (offset.lengthSq() < 1e-6) {
-        const startPoint = Math.abs(axis.y) > 0.999 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
-        orbitOffset = new THREE.Vector3().crossVectors(axis, startPoint).normalize().multiplyScalar(radius);
-    } else {
-        const parallel = axis.clone().multiplyScalar(offset.dot(axis));
-        const perp = offset.clone().sub(parallel);
-
-        if (perp.lengthSq() < 1e-6) {
-            const startPoint = Math.abs(axis.y) > 0.999 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
-            perp.copy(new THREE.Vector3().crossVectors(axis, startPoint));
-        }
-
-        orbitOffset = perp.normalize().multiplyScalar(radius);
-    }
-
-    orbitOffset.applyAxisAngle(axis, orbitSpeed);
-    state.camera.position.copy(playerPosition.clone().addScalar(4)).add(orbitOffset);
-    state.camera.up.copy(axis);
-    state.camera.lookAt(state.player.position);
+    return getSpeed(horizontalVelocity);
 }
 
 function getSpeed(velocity) {
@@ -101,7 +73,7 @@ let tickCounter = 0;
 function update() {
     tickCounter += tickCounter == 30 ? -30 : 1;
     if (tickCounter == 0) {
-        console.log(`tick`);
+        //console.log(`tick`);
     }
 
     if (!state.player || !state.player.rigidBody) {
@@ -109,7 +81,7 @@ function update() {
         return;
     }
 
-    const speed = 0;// Math.abs( getSpeed( state.player.rigidBody.linvel() ) );
+    const speed = Math.abs( getHorizontalSpeed( state.player.rigidBody.linvel() ) );
 
     state.impulse = (state.impulseF + state.impulseR) * state.groundControl;
 
@@ -130,7 +102,7 @@ function update() {
     state.player.rigidBody.applyImpulse(movement, true);
 
     if (state.yImpulse > 0) {
-        const jumpDir = state.player.position.clone().normalize().multiplyScalar(150);
+        const jumpDir = state.player.position.clone().normalize().multiplyScalar(state.yImpulse);
         state.player.rigidBody.applyImpulse(jumpDir, true);
         
         state.yImpulse = 0;
@@ -197,9 +169,7 @@ function stopJump() {
 }
 
 function doJump() {
-    console.log(`doJump`);
     if ( state.onGround ) {
-        console.log(`doJump onGround`);
         state.yImpulse = state.jumpPower;
     }
 }
