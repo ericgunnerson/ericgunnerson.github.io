@@ -164,7 +164,6 @@ function stopOrbit() {
 }
 
 function stopJump() {
-    console.log(`stopJump`);
     state.yImpulse = 0;
 }
 

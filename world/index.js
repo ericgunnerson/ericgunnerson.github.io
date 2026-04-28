@@ -36,7 +36,7 @@ async function initCamera() {
   const far = 10000;
   camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 
-  camera.position.set(0, -10, 2);
+  camera.position.set(0, -8, 2);
   camera.lookAt(player.position);
   player.camRig.add(camera);
 
@@ -92,10 +92,149 @@ async function initPhysics() {
   world = new RAPIER.World({ x: 0, y: 0, z: 0 });
 }
 
-async function initMeshes() {
+function getRandomVertexMaterial(earthGeo) {
 
-  const geometry = new THREE.IcosahedronGeometry( playerSize, 2 );
-  const geoColors = new Float32Array( geometry.attributes.position.count * 3 );
+  const earthColors = new Float32Array( earthGeo.attributes.position.count * 3 );
+  for ( let i = 0; i < earthColors.length; i += 9 ) {
+    const color = new THREE.Color( Math.random(), Math.random(), Math.random() );
+    earthColors[ i + 0 ] = color.r;
+    earthColors[ i + 1 ] = color.g;
+    earthColors[ i + 2 ] = color.b;
+    earthColors[ i + 3 ] = color.r;
+    earthColors[ i + 4 ] = color.g;
+    earthColors[ i + 5 ] = color.b;
+    earthColors[ i + 6 ] = color.r;
+    earthColors[ i + 7 ] = color.g;
+    earthColors[ i + 8 ] = color.b;
+  }
+  earthGeo.setAttribute( 'color', new THREE.BufferAttribute( earthColors, 3 ) );
+
+  const earthMat = new THREE.MeshStandardNodeMaterial();
+  earthMat.vertexColors = true;
+  earthMat.colorNode = TSL.attribute( 'color' );
+  earthMat.roughnessNode = TSL.float( 0.2 );
+  earthMat.metalnessNode = TSL.float( 0.2 );
+  return earthMat;
+
+}
+
+function getFractalMaterial() {
+
+  const planeMaterial = new THREE.MeshPhongNodeMaterial();
+  planeMaterial.color.setHex( 0x999999 );
+  planeMaterial.shininess = 0;
+  planeMaterial.specular.setHex( 0x111111 );
+
+  planeMaterial.colorNode = TSL.Fn( () => {
+
+    const pos = TSL.positionLocal.toVar();
+    pos.xz.addAssign( TSL.mx_fractal_noise_vec3( TSL.positionLocal.mul( 2 ) ).saturate().xz );
+    return TSL.mx_fractal_noise_vec3( TSL.positionLocal.mul( 2 ) ).saturate().zzz.mul( 0.2 ).add( .5 );
+
+  } )();
+
+  return planeMaterial;
+}
+
+function getBallMaterial() {
+  const material = new THREE.MeshPhongNodeMaterial( {
+    color: 0x999999,
+    shininess: 0,
+    specular: 0x222222
+  } );
+
+  material.transparent = true;
+
+  const discardNode = TSL.mx_fractal_noise_float( TSL.positionLocal.mul( 0.01 ) ).x;
+
+  material.maskNode = discardNode;
+
+  return material;
+}
+
+function getSlimeMaterial() {
+
+  const material = new THREE.MeshStandardNodeMaterial( { color: '#271442', roughness: 0.15 } );
+
+  const emissiveColor = TSL.uniform( TSL.color( '#ff0a81' ) );
+  const emissiveLow = TSL.uniform( - 0.227 );
+  const emissiveHigh = TSL.uniform( 1 );
+  const emissivePower = TSL.uniform( 10 );
+  const largeWavesFrequency = TSL.uniform( TSL.vec2( 3, 1 ) );
+  const largeWavesSpeed = TSL.uniform( 0 );
+  const largeWavesMultiplier = TSL.uniform( 0 );
+  const smallWavesIterations = TSL.uniform( 5 );
+  const smallWavesFrequency = TSL.uniform( 4 );
+  const smallWavesSpeed = TSL.uniform( 1 );
+  const smallWavesMultiplier = TSL.uniform( 0.09 );
+  const normalComputeShift = TSL.uniform( 0.01 );
+
+  // TSL functions
+
+  const wavesElevation = TSL.Fn( ( [ position ] ) => {
+
+    // large waves
+
+    const elevation = TSL.mul(
+      TSL.sin( position.x.mul( largeWavesFrequency.x ).add( TSL.time.mul( largeWavesSpeed ) ) ),
+      TSL.sin( position.z.mul( largeWavesFrequency.y ).add( TSL.time.mul( largeWavesSpeed ) ) ),
+      largeWavesMultiplier
+    ).toVar();
+
+    TSL.Loop( { start: TSL.float( 1 ), end: smallWavesIterations.add( 1 ) }, ( { i } ) => {
+
+      const noiseInput = TSL.vec3(
+        position.xz
+          .add( 2 ) // avoids a-hole pattern
+          .mul( smallWavesFrequency )
+          .mul( i ),
+        TSL.time.mul( smallWavesSpeed )
+      );
+
+      const wave = TSL.mx_noise_float( noiseInput, 1, 0 )
+        .mul( smallWavesMultiplier )
+        .div( i )
+        .abs();
+
+      elevation.subAssign( wave );
+
+    } );
+
+    return elevation;
+
+  } );
+
+  // position
+
+  const elevation = wavesElevation( TSL.positionLocal );
+  const position = TSL.positionLocal.add( TSL.vec3( 0, elevation, 0 ) );
+
+  material.positionNode = position;
+
+  // normals
+
+  let positionA = TSL.positionLocal.add( TSL.vec3( normalComputeShift, 0, 0 ) );
+  let positionB = TSL.positionLocal.add( TSL.vec3( 0, 0, normalComputeShift.negate() ) );
+
+  positionA = positionA.add( TSL.vec3( 0, wavesElevation( positionA ), 0 ) );
+  positionB = positionB.add( TSL.vec3( 0, wavesElevation( positionB ), 0 ) );
+
+  const toA = positionA.sub( position ).normalize();
+  const toB = positionB.sub( position ).normalize();
+  const normal = toA.cross( toB );
+
+  material.normalNode = TSL.transformNormalToView( normal );
+
+  // emissive
+
+  const emissive = elevation.remap( emissiveHigh, emissiveLow ).pow( emissivePower );
+  material.emissiveNode = emissiveColor.mul( emissive );
+
+  return material;
+}
+
+function getEvenOddMaterial(geometry) {
+  
   let isEven = true;
   for ( let i = 0; i < geoColors.length; i += 9 ) {
     const color = new THREE.Color( 0, isEven ? 1 : 0, 0 );
@@ -117,7 +256,15 @@ async function initMeshes() {
   playerMaterial.colorNode = TSL.attribute( 'color' );
   playerMaterial.roughnessNode = TSL.float( 0.2 );
   playerMaterial.metalnessNode = TSL.float( 0.2 );
-  const sphere = new THREE.Mesh( geometry, playerMaterial );
+
+  return playerMaterial;
+}
+
+async function initMeshes() {
+
+  const geometry = new THREE.IcosahedronGeometry( playerSize, 2 );
+  const geoColors = new Float32Array( geometry.attributes.position.count * 3 );
+  const sphere = new THREE.Mesh( geometry, getFractalMaterial() );
   sphere.visible = true;
   scene.add( sphere );
   player = new THREE.Object3D();
@@ -144,26 +291,8 @@ async function initMeshes() {
 
   let earthGeo = new THREE.IcosahedronGeometry( earthSize, earthDetail );
 
-  const earthColors = new Float32Array( earthGeo.attributes.position.count * 3 );
-  for ( let i = 0; i < earthColors.length; i += 9 ) {
-    const color = new THREE.Color( Math.random(), Math.random(), Math.random() );
-    earthColors[ i + 0 ] = color.r;
-    earthColors[ i + 1 ] = color.g;
-    earthColors[ i + 2 ] = color.b;
-    earthColors[ i + 3 ] = color.r;
-    earthColors[ i + 4 ] = color.g;
-    earthColors[ i + 5 ] = color.b;
-    earthColors[ i + 6 ] = color.r;
-    earthColors[ i + 7 ] = color.g;
-    earthColors[ i + 8 ] = color.b;
-  }
-  earthGeo.setAttribute( 'color', new THREE.BufferAttribute( earthColors, 3 ) );
-
-  const earthMat = new THREE.MeshStandardNodeMaterial();
-  earthMat.vertexColors = true;
-  earthMat.colorNode = TSL.attribute( 'color' );
-  earthMat.roughnessNode = TSL.float( 0.2 );
-  earthMat.metalnessNode = TSL.float( 0.2 );
+  //const earthMat = getRandomVertexMaterial(earthGeo);
+  const earthMat = getSlimeMaterial();
   earth = new THREE.Mesh( earthGeo, earthMat );
   earth.visible = true;
     
@@ -171,6 +300,7 @@ async function initMeshes() {
   const wireframeGeo = new THREE.WireframeGeometry(earthGeo);
   const wireframeMat = new THREE.LineBasicMaterial({ color: 0xffffff });
   const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
+  wireframe.visible = false;
 
   // 4. Add to scene
   earth.add(wireframe);
@@ -184,8 +314,6 @@ async function initMeshes() {
   const earthPos = earth.geometry.attributes.position.array;
   const earthColliderDesc = RAPIER.ColliderDesc.convexHull(earthPos);
   earth.collider = world.createCollider(earthColliderDesc, earth.rigidBody);
-
-
 }
 
 async function animate() {
