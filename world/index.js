@@ -4,9 +4,11 @@ import { GameControls } from './controls.js';
 import * as RAPIER from "@dimforge/rapier3d";
 import { bloom } from 'jsm/bloom';
 
+import { Text3d } from './text.js';
+
 
 const playerSize = 1;
-const earthSize = 1000;
+const earthSize = 50;
 const earthDetail = 20;
 const meshConfigs = [];
 const playerStart = new THREE.Vector3(0, earthSize + playerSize, 0);
@@ -39,6 +41,7 @@ async function initCamera() {
   camera.position.set(0, -8, 2);
   camera.lookAt(player.position);
   player.camRig.add(camera);
+  player.camRig.camera = camera;
 
   // // tryna bloom...
   // const renderPipeline = new THREE.RenderPipeline( renderer );
@@ -152,6 +155,57 @@ function getBallMaterial() {
   return material;
 }
 
+function getPositionColorMaterialSmooth() {
+
+  const material = new THREE.MeshStandardNodeMaterial();
+  material.roughnessNode = TSL.float( 0.2 );
+  material.metalnessNode = TSL.float( 0.2 );
+
+  const normalizedPos = TSL.positionLocal.normalize();
+  const hue = normalizedPos.y.mul( TSL.float( 0.5 ) ).add( TSL.float( 0.5 ) );
+  const hueAngle = hue.mul( TSL.TWO_PI );
+  const baseColor = TSL.color( 1, 0.2, 0.2 );
+
+  material.colorNode = TSL.hue( baseColor, hueAngle );
+
+  return material;
+
+}
+
+function getPositionColorMaterial() {
+  const material = new THREE.MeshStandardNodeMaterial();
+  material.roughnessNode = TSL.float(0.2);
+  material.metalnessNode = TSL.float(0.2);
+
+  const normalizedPos = TSL.positionLocal.normalize();
+  const y = normalizedPos.y;                    // -1 to 1
+
+  // Map Y to 0-1 range
+  const hue01 = y.mul(0.5).add(0.5);            // 0 at bottom, 1 at top
+
+  // === Parameters you can tweak ===
+  const numBands = TSL.float(8);                // number of color bands
+  const lineWidth = TSL.float(0.015);           // thickness of white lines (in 0-1 space)
+
+  // Create stepped hue (discrete colors)
+  const stepped = hue01.mul(numBands).floor().div(numBands);
+  
+  // Create white lines at the boundaries
+  const frac = hue01.mul(numBands).fract();     // 0 to 1 within each band
+  const lineMask = TSL.abs(frac.sub(0.5)).mul(2).lessThan(lineWidth)
+                     .mix(TSL.float(0), TSL.float(1));   // 1 = white line
+
+  const baseColor = TSL.color(1, 0.2, 0.2);
+  let colorNode = TSL.hue(baseColor, stepped.mul(TSL.TWO_PI));
+
+  // Apply white lines
+  colorNode = lineMask.mix(colorNode, TSL.color(1, 1, 1));
+
+  material.colorNode = colorNode;
+
+  return material;
+}
+
 function getSlimeMaterial() {
 
   const material = new THREE.MeshStandardNodeMaterial( { color: '#271442', roughness: 0.15 } );
@@ -233,6 +287,12 @@ function getSlimeMaterial() {
   return material;
 }
 
+function getPhongMaterial() {
+
+  const material = new THREE.MeshPhongNodeMaterial( { color: 0x00ff00, flatShading: false } );
+  return material;
+}
+
 function getEvenOddMaterial(geometry) {
   
   let isEven = true;
@@ -259,6 +319,7 @@ function getEvenOddMaterial(geometry) {
 
   return playerMaterial;
 }
+
 
 async function initMeshes() {
 
@@ -292,7 +353,7 @@ async function initMeshes() {
   let earthGeo = new THREE.IcosahedronGeometry( earthSize, earthDetail );
 
   //const earthMat = getRandomVertexMaterial(earthGeo);
-  const earthMat = getSlimeMaterial();
+  const earthMat = getPositionColorMaterial();
   earth = new THREE.Mesh( earthGeo, earthMat );
   earth.visible = true;
     
@@ -344,5 +405,6 @@ async function animate() {
   await initCamera();
   await initGameControls();
   await initLights();
+  Text3d('Yo it\'s me, your 3D text!!!', 'kenpixel', scene, getPhongMaterial(), playerStart);
   await animate();
 })();
