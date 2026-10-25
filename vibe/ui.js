@@ -112,11 +112,8 @@ export function createMenu({ renderer, camera, controllers, parent }) {
       minimizedMesh.position
         .copy(menuPosition)
         .addScaledVector(
-          minimizedOffset
-            .set(1, 1, 0)
-            .applyQuaternion(camera.quaternion)
-            .normalize(),
-          0.12,
+          minimizedOffset.set(1, 1, 0).applyQuaternion(camera.quaternion),
+          0.2,
         );
       expandedMesh.position.copy(menuPosition);
       minimizedMesh.quaternion.copy(camera.quaternion);

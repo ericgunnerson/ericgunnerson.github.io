@@ -13,13 +13,15 @@ const pressedKeys = new Set();
 const xrPressedKeys = new Set();
 const clock = new THREE.Clock();
 let speed = 0;
-const acceleration = 8;
-const maxSpeed = 12;
-const friction = 1;
-const brakingPower = 12;
-const maxTurnRadius = 8;
-const turnSensitivity = 20;
-const cameraRotationSpeed = 1.5;
+const acceleration = 8; // min 1, max 20, step .5
+const maxSpeed = 12; // min 1, max 100, step 1
+const friction = 1; // min .5, max 10, step .5
+const brakingPower = 12; // min 5, max 20, step 1
+const maxTurnRadius = 8; // min 1, max 20, step 1
+const turnSensitivity = 20; // min 10, max 50, step 1
+const cameraRotationSpeed = 1.5; // min .5, max 5, step .5
+const cameraOffsetY = 3; // min 0.1, max 10, step .1
+const cameraOffsetZ = 5; // min 0.1, max 10, step .1
 let turnRadius = 0;
 let lastTurnDirection = 0;
 
@@ -291,7 +293,7 @@ function animate() {
       (speed / maxTurnRadius) * (turnRadius / maxTurnRadius) * delta;
   }
 
-  const cameraOffset = new THREE.Vector3(0, 3, 5).applyAxisAngle(
+  const cameraOffset = new THREE.Vector3(0, cameraOffsetY, cameraOffsetZ).applyAxisAngle(
     new THREE.Vector3(0, 1, 0),
     player.rotation.y,
   );
