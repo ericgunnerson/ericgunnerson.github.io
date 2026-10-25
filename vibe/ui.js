@@ -31,20 +31,65 @@ const settingControls = [
   {
     key: "cameraOffsetY",
     label: "Camera height",
-    min: 0.1,
+    min: -5,
     max: 10,
     step: 0.1,
   },
   {
     key: "cameraOffsetZ",
     label: "Camera distance",
-    min: 0.1,
+    min: -5,
     max: 10,
+    step: 0.1,
+  },
+  {
+    key: "menuOffsetX",
+    label: "Menu horizontal offset",
+    min: -5,
+    max: 5,
+    step: 0.1,
+  },
+  {
+    key: "menuOffsetY",
+    label: "Menu vertical offset",
+    min: -5,
+    max: 5,
     step: 0.1,
   },
 ];
 
+const settingsStorageKey = "vibe.settings";
+
 export function createMenu({ renderer, camera, controllers, parent, settings }) {
+  try {
+    const savedSettings = localStorage.getItem(settingsStorageKey);
+    if (savedSettings !== null) {
+      const parsedSettings = JSON.parse(savedSettings);
+      if (
+        parsedSettings === null ||
+        typeof parsedSettings !== "object" ||
+        Array.isArray(parsedSettings)
+      ) {
+        throw new TypeError("Saved settings must be an object.");
+      }
+      for (const control of settingControls) {
+        const value = parsedSettings[control.key];
+        if (
+          typeof value === "number" &&
+          Number.isFinite(value) &&
+          value >= control.min &&
+          value <= control.max
+        ) {
+          settings[control.key] = value;
+        } else if (value !== undefined) {
+          console.warn(`Ignoring invalid saved setting: ${control.key}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Unable to load saved settings from local storage.", error);
+  }
+
   const minimizedElement = document.createElement("div");
   minimizedElement.style.cssText = `
     box-sizing: border-box;
@@ -206,12 +251,17 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
           Math.max(control.min, nextValue),
         );
         valueElement.textContent = settings[control.key].toFixed(precision);
+        try {
+          localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+        } catch (error) {
+          console.error("Unable to save settings to local storage.", error);
+        }
       });
     }
   }
 
   const carOffset = new Vector3();
-  const viewOffset = new Vector3(1.1, 0.5, -1.2);
+  const viewOffset = new Vector3();
   const menuPosition = new Vector3();
   const minimizedPositionOffset = new Vector3();
   const expandedPositionOffset = new Vector3();
@@ -219,6 +269,7 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
   return {
     update() {
       carOffset.set(0, settings.cameraOffsetY, settings.cameraOffsetZ);
+      viewOffset.set(settings.menuOffsetX, settings.menuOffsetY, -1.2);
       menuPosition.copy(carOffset).add(viewOffset);
       setMeshTopRightPosition(
         minimizedMesh,

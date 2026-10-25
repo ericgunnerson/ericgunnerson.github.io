@@ -23,6 +23,8 @@ const settings = {
   cameraRotationSpeed: 1.5,
   cameraOffsetY: 3,
   cameraOffsetZ: 5,
+  menuOffsetX: 1.1,
+  menuOffsetY: 0.5,
 };
 let turnRadius = 0;
 let lastTurnDirection = 0;
