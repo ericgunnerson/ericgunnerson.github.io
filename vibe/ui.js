@@ -210,7 +210,7 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
     }
   }
 
-  const cameraOffset = new Vector3();
+  const carOffset = new Vector3();
   const viewOffset = new Vector3(1.1, 0.5, -1.2);
   const menuPosition = new Vector3();
   const minimizedPositionOffset = new Vector3();
@@ -218,38 +218,27 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
 
   return {
     update() {
-      cameraOffset.set(0, settings.cameraOffsetY, settings.cameraOffsetZ);
-      menuPosition
-        .copy(viewOffset)
-        .applyQuaternion(camera.quaternion)
-        .add(cameraOffset);
+      carOffset.set(0, settings.cameraOffsetY, settings.cameraOffsetZ);
+      menuPosition.copy(carOffset).add(viewOffset);
       setMeshTopRightPosition(
         minimizedMesh,
         menuPosition,
-        camera.quaternion,
         minimizedPositionOffset,
       );
       setMeshTopRightPosition(
         expandedMesh,
         menuPosition,
-        camera.quaternion,
         expandedPositionOffset,
       );
-      minimizedMesh.quaternion.copy(camera.quaternion);
-      expandedMesh.quaternion.copy(camera.quaternion);
+      minimizedMesh.quaternion.identity();
+      expandedMesh.quaternion.identity();
     },
   };
 }
 
-function setMeshTopRightPosition(mesh, anchor, rotation, offset) {
+function setMeshTopRightPosition(mesh, anchor, offset) {
   const { width, height } = mesh.geometry.parameters;
-  offset
-    .set(
-      (-width * mesh.scale.x) / 2,
-      (-height * mesh.scale.y) / 2,
-      0,
-    )
-    .applyQuaternion(rotation);
+  offset.set((-width * mesh.scale.x) / 2, (-height * mesh.scale.y) / 2, 0);
   mesh.position.copy(anchor).add(offset);
 }
 

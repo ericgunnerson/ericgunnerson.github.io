@@ -70,7 +70,6 @@ function initXrControllers() {
     );
     pointer.frustumCulled = false;
     controller.add(pointer);
-    scene.add(controller);
     xrControllers.push(controller);
   }
 }
@@ -304,6 +303,11 @@ function animate() {
   ).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
   cameraRig.position.copy(player.position).add(cameraOffset);
   cameraRig.rotation.y = player.rotation.y;
+  for (const controller of xrControllers) {
+    if (controller.parent !== cameraRig) {
+      cameraRig.add(controller);
+    }
+  }
 
   if (!renderer.xr.isPresenting) {
     const horizontalCameraInput =
