@@ -4,7 +4,7 @@ import { VRButton } from "jsm/webxr/VRButton.js";
 const w = window.innerWidth;
 const h = window.innerHeight;
 
-let renderer, camera, cameraRig, scene, player, bodyMaterial;
+let renderer, camera, cameraRig, scene, player, car;
 let desktopCameraQuaternion;
 const pressedKeys = new Set();
 const xrPressedKeys = new Set();
@@ -14,8 +14,8 @@ const acceleration = 8;
 const maxSpeed = 12;
 const friction = 1;
 const brakingPower = 12;
-const maxTurnRadius = 5;
-const turnSensitivity = 10;
+const maxTurnRadius = 8;
+const turnSensitivity = 20;
 const cameraRotationSpeed = 1.5;
 let turnRadius = 0;
 let lastTurnDirection = 0;
@@ -116,11 +116,26 @@ function updateXrControls() {
     }
   }
 
-  bodyMaterial?.color.setHex(detectedAxisCount > 0 ? 0x00ff00 : 0xff0000);
+  car
+    ?.getObjectByName("body")
+    ?.material.color.setHex(detectedAxisCount > 0 ? 0x00ff00 : 0xff0000);
 }
 
 function isControlPressed(key) {
   return pressedKeys.has(key) || xrPressedKeys.has(key);
+}
+
+function updateFrontWheelRotation() {
+  const steeringPercentage = THREE.MathUtils.clamp(
+    turnRadius / maxTurnRadius,
+    -1,
+    1,
+  );
+  const steeringAngle = steeringPercentage * THREE.MathUtils.degToRad(20);
+
+  for (const wheel of car.userData.frontWheels) {
+    wheel.rotation.y = steeringAngle;
+  }
 }
 
 async function initScene() {
@@ -165,14 +180,16 @@ async function initMeshes() {
   }
   scene.add(grid);
 
-  const car = new THREE.Group();
+  car = new THREE.Group();
+  car.userData.frontWheels = [];
   const bodyGeometry = new THREE.BoxGeometry(1.5, 0.5, 2.4);
-  bodyMaterial = new THREE.MeshStandardMaterial({
+  const bodyMaterial = new THREE.MeshStandardMaterial({
     color: 0xff0000,
     roughness: 0.2,
     metalness: 0.2,
   });
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  body.name = "body";
   body.position.y = 0.25;
   car.add(body);
 
@@ -184,6 +201,7 @@ async function initMeshes() {
       wheel.rotation.z = Math.PI / 2;
       wheel.position.set(x, -0.05, z);
       car.add(wheel);
+      if (z < 0) car.userData.frontWheels.push(wheel);
     }
   }
 
@@ -244,6 +262,7 @@ function animate() {
     );
     lastTurnDirection = turnDirection;
   }
+  updateFrontWheelRotation();
 
   player.translateZ(-speed * delta);
   if (speed !== 0) {
