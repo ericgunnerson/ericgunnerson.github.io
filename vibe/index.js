@@ -11,7 +11,7 @@ let menu;
 let desktopCameraQuaternion;
 const pressedKeys = new Set();
 const xrPressedKeys = new Set();
-const clock = new THREE.Clock();
+let timer;
 let speed = 0;
 const settings = {
   acceleration: 8,
@@ -245,8 +245,10 @@ async function initLights() {
   scene.add( directionalLight );
 }
 
-function animate() {
-  const delta = Math.min(clock.getDelta(), 0.1);
+function animate(timestamp) {
+  if (!timer) return;
+  timer.update(timestamp);
+  const delta = Math.min(timer.getDelta(), 0.1);
   updateXrControls();
   const moveDirection =
     (isControlPressed("ArrowUp") ? 1 : 0) -
@@ -343,6 +345,8 @@ function animate() {
 
 // Initialize everything
 (async () => {
+  timer = new THREE.Timer();
+  timer.connect(document);
   await initRenderer();
   await initScene();
   initXrControllers();
