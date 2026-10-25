@@ -1,10 +1,13 @@
 import * as THREE from "three";
 import { VRButton } from "jsm/webxr/VRButton.js";
+import { createMenu } from "./ui.js";
 
 const w = window.innerWidth;
 const h = window.innerHeight;
 
 let renderer, camera, cameraRig, scene, player, car;
+const xrControllers = [];
+let menu;
 let desktopCameraQuaternion;
 const pressedKeys = new Set();
 const xrPressedKeys = new Set();
@@ -48,6 +51,24 @@ async function initRenderer() {
   renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
   document.body.appendChild(VRButton.createButton(renderer));
+}
+
+function initXrControllers() {
+  for (let index = 0; index < 2; index++) {
+    const controller = renderer.xr.getController(index);
+    const pointerGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 0, -3),
+    ]);
+    const pointer = new THREE.Line(
+      pointerGeometry,
+      new THREE.LineBasicMaterial({ color: 0x9bc2ff }),
+    );
+    pointer.frustumCulled = false;
+    controller.add(pointer);
+    scene.add(controller);
+    xrControllers.push(controller);
+  }
 }
 
 async function initCamera() {
@@ -279,13 +300,14 @@ function animate() {
 
   if (!renderer.xr.isPresenting) {
     const horizontalCameraInput =
-      (pressedKeys.has("w") ? 1 : 0) - (pressedKeys.has("s") ? 1 : 0);
-    const verticalCameraInput =
       (pressedKeys.has("a") ? 1 : 0) - (pressedKeys.has("d") ? 1 : 0);
+    const verticalCameraInput =
+      (pressedKeys.has("w") ? 1 : 0) - (pressedKeys.has("s") ? 1 : 0);
     camera.rotateY(horizontalCameraInput * cameraRotationSpeed * delta);
     camera.rotateX(verticalCameraInput * cameraRotationSpeed * delta);
   }
 
+  menu?.update();
   renderer.render(scene, camera);
 }
 
@@ -293,8 +315,16 @@ function animate() {
 (async () => {
   await initRenderer();
   await initScene();
+  initXrControllers();
   await initMeshes();
   await initCamera();
   await initLights();
+  menu = createMenu({
+    renderer,
+    camera,
+    controllers: xrControllers,
+    parent: car,
+  });
+  menu.update();
   renderer.setAnimationLoop(animate);
 })();
