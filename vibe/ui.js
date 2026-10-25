@@ -125,11 +125,13 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
   }
 
   const minimizedMesh = new HTMLMesh(minimizedElement);
-  minimizedMesh.scale.setScalar(1.5);
+  minimizedMesh.scale.setScalar(2);
+  makeRaycastRespectVisibility(minimizedMesh);
   interactiveGroup.add(minimizedMesh);
 
   const expandedMesh = new HTMLMesh(expandedElement);
-  expandedMesh.scale.setScalar(1.5);
+  expandedMesh.scale.setScalar(2);
+  makeRaycastRespectVisibility(expandedMesh);
   expandedMesh.visible = false;
   interactiveGroup.add(expandedMesh);
   parent.add(interactiveGroup);
@@ -173,10 +175,10 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
   }
 
   const cameraOffset = new Vector3();
-  const viewOffset = new Vector3(0.7, 0.38, -1.2);
+  const viewOffset = new Vector3(1.1, 0.5, -1.2);
   const menuPosition = new Vector3();
-  const minimizedOffset = new Vector3(1.4, 1.2, 0);
-  const rotatedMinimizedOffset = new Vector3();
+  const minimizedPositionOffset = new Vector3();
+  const expandedPositionOffset = new Vector3();
 
   return {
     update() {
@@ -185,17 +187,41 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
         .copy(viewOffset)
         .applyQuaternion(camera.quaternion)
         .add(cameraOffset);
-      minimizedMesh.position
-        .copy(menuPosition)
-        .addScaledVector(
-          rotatedMinimizedOffset
-            .copy(minimizedOffset)
-            .applyQuaternion(camera.quaternion),
-          0.2,
-        );
-      expandedMesh.position.copy(menuPosition);
+      setMeshTopRightPosition(
+        minimizedMesh,
+        menuPosition,
+        camera.quaternion,
+        minimizedPositionOffset,
+      );
+      setMeshTopRightPosition(
+        expandedMesh,
+        menuPosition,
+        camera.quaternion,
+        expandedPositionOffset,
+      );
       minimizedMesh.quaternion.copy(camera.quaternion);
       expandedMesh.quaternion.copy(camera.quaternion);
     },
+  };
+}
+
+function setMeshTopRightPosition(mesh, anchor, rotation, offset) {
+  const { width, height } = mesh.geometry.parameters;
+  offset
+    .set(
+      (-width * mesh.scale.x) / 2,
+      (-height * mesh.scale.y) / 2,
+      0,
+    )
+    .applyQuaternion(rotation);
+  mesh.position.copy(anchor).add(offset);
+}
+
+function makeRaycastRespectVisibility(mesh) {
+  const raycast = mesh.raycast;
+  mesh.raycast = function (raycaster, intersections) {
+    if (this.visible) {
+      raycast.call(this, raycaster, intersections);
+    }
   };
 }
