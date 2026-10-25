@@ -175,7 +175,8 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
   const cameraOffset = new Vector3();
   const viewOffset = new Vector3(0.7, 0.38, -1.2);
   const menuPosition = new Vector3();
-  const minimizedOffset = new Vector3(1, 1, 0);
+  const minimizedOffset = new Vector3(1.4, 1.2, 0);
+  const rotatedMinimizedOffset = new Vector3();
 
   return {
     update() {
@@ -187,7 +188,9 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
       minimizedMesh.position
         .copy(menuPosition)
         .addScaledVector(
-          minimizedOffset.set(1, 1, 0).applyQuaternion(camera.quaternion),
+          rotatedMinimizedOffset
+            .copy(minimizedOffset)
+            .applyQuaternion(camera.quaternion),
           0.2,
         );
       expandedMesh.position.copy(menuPosition);
