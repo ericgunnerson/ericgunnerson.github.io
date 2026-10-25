@@ -57,7 +57,7 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
     font: bold 28px/52px Arial, sans-serif;
     text-align: center;
   `;
-  minimizedElement.textContent = "-";
+  minimizedElement.textContent = "+";
 
   const expandedElement = document.createElement("div");
   expandedElement.style.cssText = `
@@ -86,13 +86,28 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
       border: 2px solid #7daeff;
       border-radius: 8px;
       font: bold 28px Arial, sans-serif;
-    ">+</button>
+    ">-</button>
     <div style="font-size: 22px; font-weight: bold; margin-bottom: 8px">
       Vehicle Settings
     </div>
-    <div id="settings-list"></div>
+    <div id="settings-list" style="
+      position: relative;
+      top: 10px;
+      max-height: 400px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    ">
+      <button id="settings-scroll-up" type="button" aria-label="Scroll settings up"
+        style="height: 32px; flex: 0 0 32px; font-size: 20px">↑</button>
+      <div id="settings-viewport" style="height: 300px; overflow: hidden">
+        <div id="settings-rows"></div>
+      </div>
+      <button id="settings-scroll-down" type="button" aria-label="Scroll settings down"
+        style="height: 32px; flex: 0 0 32px; font-size: 20px">↓</button>
+    </div>
   `;
-  const settingsList = expandedElement.querySelector("#settings-list");
+  const settingsRows = expandedElement.querySelector("#settings-rows");
   for (const control of settingControls) {
     const row = document.createElement("div");
     row.style.cssText =
@@ -108,8 +123,29 @@ export function createMenu({ renderer, camera, controllers, parent, settings }) 
         aria-label="Increase ${control.label}"
         style="width: 32px; height: 30px; font-size: 20px">+</button>
     `;
-    settingsList.appendChild(row);
+    settingsRows.appendChild(row);
   }
+  const scrollUpButton = expandedElement.querySelector("#settings-scroll-up");
+  const scrollDownButton = expandedElement.querySelector("#settings-scroll-down");
+  let settingsScrollTop = 0;
+  const settingsScrollStep = 114;
+  function updateSettingsScroll() {
+    const viewport = expandedElement.querySelector("#settings-viewport");
+    const maxScrollTop = Math.max(0, settingsRows.offsetHeight - viewport.clientHeight);
+    settingsScrollTop = Math.min(settingsScrollTop, maxScrollTop);
+    settingsRows.style.marginTop = `-${settingsScrollTop}px`;
+    scrollUpButton.disabled = settingsScrollTop === 0;
+    scrollDownButton.disabled = settingsScrollTop >= maxScrollTop;
+  }
+  scrollUpButton.addEventListener("click", () => {
+    settingsScrollTop = Math.max(0, settingsScrollTop - settingsScrollStep);
+    updateSettingsScroll();
+  });
+  scrollDownButton.addEventListener("click", () => {
+    settingsScrollTop += settingsScrollStep;
+    updateSettingsScroll();
+  });
+  updateSettingsScroll();
 
   for (const element of [minimizedElement, expandedElement]) {
     element.style.position = "fixed";
