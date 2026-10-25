@@ -7,7 +7,7 @@ import { Noise } from './perlin.js';
 
 const playerSize = 1;
 const earthSize = 1000;
-const earthDetail = 40;
+const earthDetail = 80;
 const noiseFrequency = 0.015;
 const noiseStrength = 10;
 const camStartZ = 0;
@@ -16,7 +16,7 @@ const meshConfigs = [];
 const playerStart = new THREE.Vector3(0, earthSize + 20, 0);
 const w = window.innerWidth;
 const h = window.innerHeight;
-const triangleDrawDistance = 100;
+const triangleDrawDistance = 200;
 const collections = {
   triangles: [],
   lights: [],
