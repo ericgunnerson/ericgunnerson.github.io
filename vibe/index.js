@@ -303,8 +303,25 @@ function animate() {
       (pressedKeys.has("a") ? 1 : 0) - (pressedKeys.has("d") ? 1 : 0);
     const verticalCameraInput =
       (pressedKeys.has("w") ? 1 : 0) - (pressedKeys.has("s") ? 1 : 0);
-    camera.rotateY(horizontalCameraInput * cameraRotationSpeed * delta);
-    camera.rotateX(verticalCameraInput * cameraRotationSpeed * delta);
+    const yawRotation = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      horizontalCameraInput * cameraRotationSpeed * delta,
+    );
+    const pitchRotation = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(1, 0, 0),
+      verticalCameraInput * cameraRotationSpeed * delta,
+    );
+    const parentWorldQuaternion = cameraRig.getWorldQuaternion(
+      new THREE.Quaternion(),
+    );
+    const cameraWorldQuaternion = camera.getWorldQuaternion(
+      new THREE.Quaternion(),
+    );
+    cameraWorldQuaternion.premultiply(yawRotation);
+    camera.quaternion
+      .copy(parentWorldQuaternion.invert())
+      .multiply(cameraWorldQuaternion);
+    camera.quaternion.multiply(pitchRotation);
   }
 
   menu?.update();
