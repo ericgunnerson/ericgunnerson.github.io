@@ -13,15 +13,17 @@ const pressedKeys = new Set();
 const xrPressedKeys = new Set();
 const clock = new THREE.Clock();
 let speed = 0;
-const acceleration = 8; // min 1, max 20, step .5
-const maxSpeed = 12; // min 1, max 100, step 1
-const friction = 1; // min .5, max 10, step .5
-const brakingPower = 12; // min 5, max 20, step 1
-const maxTurnRadius = 8; // min 1, max 20, step 1
-const turnSensitivity = 20; // min 10, max 50, step 1
-const cameraRotationSpeed = 1.5; // min .5, max 5, step .5
-const cameraOffsetY = 3; // min 0.1, max 10, step .1
-const cameraOffsetZ = 5; // min 0.1, max 10, step .1
+const settings = {
+  acceleration: 8,
+  maxSpeed: 12,
+  friction: 1,
+  brakingPower: 12,
+  maxTurnRadius: 8,
+  turnSensitivity: 20,
+  cameraRotationSpeed: 1.5,
+  cameraOffsetY: 3,
+  cameraOffsetZ: 5,
+};
 let turnRadius = 0;
 let lastTurnDirection = 0;
 
@@ -150,7 +152,7 @@ function isControlPressed(key) {
 
 function updateFrontWheelRotation() {
   const steeringPercentage = THREE.MathUtils.clamp(
-    turnRadius / maxTurnRadius,
+    turnRadius / settings.maxTurnRadius,
     -1,
     1,
   );
@@ -254,20 +256,20 @@ function animate() {
 
   if (moveDirection !== 0) {
     if (speed * moveDirection < 0) {
-      const braking = (friction + brakingPower) * delta;
+      const braking = (settings.friction + settings.brakingPower) * delta;
       speed =
         speed > 0
           ? Math.max(0, speed - braking)
           : Math.min(0, speed + braking);
     } else {
       speed = THREE.MathUtils.clamp(
-        speed + moveDirection * acceleration * delta,
-        -maxSpeed,
-        maxSpeed,
+        speed + moveDirection * settings.acceleration * delta,
+        -settings.maxSpeed,
+        settings.maxSpeed,
       );
     }
   } else {
-    speed = THREE.MathUtils.damp(speed, 0, friction, delta);
+    speed = THREE.MathUtils.damp(speed, 0, settings.friction, delta);
     if (Math.abs(speed) < 0.01) speed = 0;
   }
 
@@ -279,9 +281,9 @@ function animate() {
       turnRadius = 0;
     }
     turnRadius = THREE.MathUtils.clamp(
-      turnRadius - turnDirection * turnSensitivity * delta,
-      -maxTurnRadius,
-      maxTurnRadius,
+      turnRadius - turnDirection * settings.turnSensitivity * delta,
+      -settings.maxTurnRadius,
+      settings.maxTurnRadius,
     );
     lastTurnDirection = turnDirection;
   }
@@ -290,13 +292,16 @@ function animate() {
   player.translateZ(-speed * delta);
   if (speed !== 0) {
     player.rotation.y +=
-      (speed / maxTurnRadius) * (turnRadius / maxTurnRadius) * delta;
+      (speed / settings.maxTurnRadius) *
+      (turnRadius / settings.maxTurnRadius) *
+      delta;
   }
 
-  const cameraOffset = new THREE.Vector3(0, cameraOffsetY, cameraOffsetZ).applyAxisAngle(
-    new THREE.Vector3(0, 1, 0),
-    player.rotation.y,
-  );
+  const cameraOffset = new THREE.Vector3(
+    0,
+    settings.cameraOffsetY,
+    settings.cameraOffsetZ,
+  ).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
   cameraRig.position.copy(player.position).add(cameraOffset);
   cameraRig.rotation.y = player.rotation.y;
 
@@ -307,11 +312,11 @@ function animate() {
       (pressedKeys.has("w") ? 1 : 0) - (pressedKeys.has("s") ? 1 : 0);
     const yawRotation = new THREE.Quaternion().setFromAxisAngle(
       new THREE.Vector3(0, 1, 0),
-      horizontalCameraInput * cameraRotationSpeed * delta,
+      horizontalCameraInput * settings.cameraRotationSpeed * delta,
     );
     const pitchRotation = new THREE.Quaternion().setFromAxisAngle(
       new THREE.Vector3(1, 0, 0),
-      verticalCameraInput * cameraRotationSpeed * delta,
+      verticalCameraInput * settings.cameraRotationSpeed * delta,
     );
     const parentWorldQuaternion = cameraRig.getWorldQuaternion(
       new THREE.Quaternion(),
@@ -343,6 +348,7 @@ function animate() {
     camera,
     controllers: xrControllers,
     parent: car,
+    settings,
   });
   menu.update();
   renderer.setAnimationLoop(animate);

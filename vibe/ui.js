@@ -2,7 +2,49 @@ import { Vector3 } from "three";
 import { HTMLMesh } from "jsm/interactive/HTMLMesh.js";
 import { InteractiveGroup } from "jsm/interactive/InteractiveGroup.js";
 
-export function createMenu({ renderer, camera, controllers, parent }) {
+const settingControls = [
+  { key: "acceleration", label: "Acceleration", min: 1, max: 20, step: 0.5 },
+  { key: "maxSpeed", label: "Maximum speed", min: 1, max: 100, step: 1 },
+  { key: "friction", label: "Friction", min: 0.5, max: 10, step: 0.5 },
+  { key: "brakingPower", label: "Braking power", min: 5, max: 20, step: 1 },
+  {
+    key: "maxTurnRadius",
+    label: "Maximum turn radius",
+    min: 1,
+    max: 20,
+    step: 1,
+  },
+  {
+    key: "turnSensitivity",
+    label: "Turn sensitivity",
+    min: 10,
+    max: 50,
+    step: 1,
+  },
+  {
+    key: "cameraRotationSpeed",
+    label: "Camera rotation speed",
+    min: 0.5,
+    max: 5,
+    step: 0.5,
+  },
+  {
+    key: "cameraOffsetY",
+    label: "Camera height",
+    min: 0.1,
+    max: 10,
+    step: 0.1,
+  },
+  {
+    key: "cameraOffsetZ",
+    label: "Camera distance",
+    min: 0.1,
+    max: 10,
+    step: 0.1,
+  },
+];
+
+export function createMenu({ renderer, camera, controllers, parent, settings }) {
   const minimizedElement = document.createElement("div");
   minimizedElement.style.cssText = `
     box-sizing: border-box;
@@ -21,9 +63,9 @@ export function createMenu({ renderer, camera, controllers, parent }) {
   expandedElement.style.cssText = `
     box-sizing: border-box;
     position: relative;
-    width: 320px;
-    height: 180px;
-    padding: 20px;
+    width: 380px;
+    height: 440px;
+    padding: 12px;
     color: #eef4ff;
     background: rgba(12, 24, 42, 0.94);
     border: 2px solid #7daeff;
@@ -45,19 +87,29 @@ export function createMenu({ renderer, camera, controllers, parent }) {
       border-radius: 8px;
       font: bold 28px Arial, sans-serif;
     ">+</button>
-    <div style="font-size: 24px; font-weight: bold; margin-bottom: 12px">
-      Vehicle Menu
+    <div style="font-size: 22px; font-weight: bold; margin-bottom: 8px">
+      Vehicle Settings
     </div>
-    <div id="menu-status" style="margin-bottom: 16px">Ready</div>
-    <button id="test-input" type="button" style="
-      padding: 8px 14px;
-      color: #10213a;
-      background: #9bc2ff;
-      border: 0;
-      border-radius: 6px;
-      font: bold 16px Arial, sans-serif;
-    ">Test mouse / XR input</button>
+    <div id="settings-list"></div>
   `;
+  const settingsList = expandedElement.querySelector("#settings-list");
+  for (const control of settingControls) {
+    const row = document.createElement("div");
+    row.style.cssText =
+      "height: 38px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #40536d;";
+    row.innerHTML = `
+      <span style="flex: 1; font-size: 15px">${control.label}</span>
+      <button type="button" data-setting="${control.key}" data-change="-1"
+        aria-label="Decrease ${control.label}"
+        style="width: 32px; height: 30px; font-size: 20px">-</button>
+      <span data-value="${control.key}"
+        style="width: 48px; text-align: center; font-size: 15px"></span>
+      <button type="button" data-setting="${control.key}" data-change="1"
+        aria-label="Increase ${control.label}"
+        style="width: 32px; height: 30px; font-size: 20px">+</button>
+    `;
+    settingsList.appendChild(row);
+  }
 
   for (const element of [minimizedElement, expandedElement]) {
     element.style.position = "fixed";
@@ -86,25 +138,48 @@ export function createMenu({ renderer, camera, controllers, parent }) {
     minimizedMesh.visible = false;
     expandedMesh.visible = true;
   });
-  expandedElement.querySelector("#menu-collapse").addEventListener("click", () => {
-    expandedMesh.visible = false;
-    minimizedMesh.visible = true;
-  });
+  expandedElement
+    .querySelector("#menu-collapse")
+    .addEventListener("click", () => {
+      expandedMesh.visible = false;
+      minimizedMesh.visible = true;
+    });
 
-  let clickCount = 0;
-  expandedElement.querySelector("#test-input").addEventListener("click", () => {
-    clickCount += 1;
-    expandedElement.querySelector("#menu-status").textContent =
-      `Pointer input received (${clickCount})`;
-  });
+  for (const control of settingControls) {
+    const valueElement = expandedElement.querySelector(
+      `[data-value="${control.key}"]`,
+    );
+    const precision = (control.step.toString().split(".")[1] || "").length;
+    valueElement.textContent = settings[control.key].toFixed(precision);
 
-  const cameraOffset = new Vector3(0, 3, 5);
+    for (const button of expandedElement.querySelectorAll(
+      `[data-setting="${control.key}"]`,
+    )) {
+      button.addEventListener("click", () => {
+        const change = Number(button.dataset.change);
+        const factor = 10 ** precision;
+        const nextValue =
+          Math.round(
+            (settings[control.key] + change * control.step + Number.EPSILON) *
+              factor,
+          ) / factor;
+        settings[control.key] = Math.min(
+          control.max,
+          Math.max(control.min, nextValue),
+        );
+        valueElement.textContent = settings[control.key].toFixed(precision);
+      });
+    }
+  }
+
+  const cameraOffset = new Vector3();
   const viewOffset = new Vector3(0.7, 0.38, -1.2);
   const menuPosition = new Vector3();
   const minimizedOffset = new Vector3(1, 1, 0);
 
   return {
     update() {
+      cameraOffset.set(0, settings.cameraOffsetY, settings.cameraOffsetZ);
       menuPosition
         .copy(viewOffset)
         .applyQuaternion(camera.quaternion)
