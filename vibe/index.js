@@ -7,6 +7,7 @@ const h = window.innerHeight;
 let renderer, camera, cameraRig, scene, player;
 let desktopCameraQuaternion;
 const pressedKeys = new Set();
+const xrPressedKeys = new Set();
 const clock = new THREE.Clock();
 let speed = 0;
 const acceleration = 8;
@@ -73,6 +74,7 @@ async function initCamera() {
     if (desktopCameraQuaternion) {
       camera.quaternion.copy(desktopCameraQuaternion);
     }
+    xrPressedKeys.clear();
   });
 }
 
@@ -87,6 +89,31 @@ function onWindowResize() {
 
   // Update Renderer Size
   renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function updateXrControls() {
+  xrPressedKeys.clear();
+  const session = renderer.xr.getSession();
+  if (!session) return;
+
+  const deadzone = 0.5;
+  for (const inputSource of session.inputSources) {
+    const axes = inputSource.gamepad?.axes;
+    if (!axes || axes.length < 2) continue;
+
+    // WebXR standard gamepads reserve axes 0-1 for the touchpad when present.
+    const stickAxis = axes.length >= 4 ? 2 : 0;
+    const x = axes[stickAxis];
+    const y = axes[stickAxis + 1];
+    if (x >= deadzone) xrPressedKeys.add("ArrowRight");
+    if (x <= -deadzone) xrPressedKeys.add("ArrowLeft");
+    if (y <= -deadzone) xrPressedKeys.add("ArrowUp");
+    if (y >= deadzone) xrPressedKeys.add("ArrowDown");
+  }
+}
+
+function isControlPressed(key) {
+  return pressedKeys.has(key) || xrPressedKeys.has(key);
 }
 
 async function initScene() {
@@ -169,12 +196,13 @@ async function initLights() {
 
 function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
+  updateXrControls();
   const moveDirection =
-    (pressedKeys.has("ArrowUp") ? 1 : 0) -
-    (pressedKeys.has("ArrowDown") ? 1 : 0);
+    (isControlPressed("ArrowUp") ? 1 : 0) -
+    (isControlPressed("ArrowDown") ? 1 : 0);
   const turnDirection =
-    (pressedKeys.has("ArrowRight") ? 1 : 0) -
-    (pressedKeys.has("ArrowLeft") ? 1 : 0);
+    (isControlPressed("ArrowRight") ? 1 : 0) -
+    (isControlPressed("ArrowLeft") ? 1 : 0);
 
   if (moveDirection !== 0) {
     if (speed * moveDirection < 0) {
