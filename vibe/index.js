@@ -4,7 +4,7 @@ import { VRButton } from "jsm/webxr/VRButton.js";
 const w = window.innerWidth;
 const h = window.innerHeight;
 
-let renderer, camera, cameraRig, scene, player;
+let renderer, camera, cameraRig, scene, player, bodyMaterial;
 let desktopCameraQuaternion;
 const pressedKeys = new Set();
 const xrPressedKeys = new Set();
@@ -94,22 +94,29 @@ function onWindowResize() {
 function updateXrControls() {
   xrPressedKeys.clear();
   const session = renderer.xr.getSession();
-  if (!session) return;
+  let detectedAxisCount = 0;
 
-  const deadzone = 0.5;
-  for (const inputSource of session.inputSources) {
-    const axes = inputSource.gamepad?.axes;
-    if (!axes || axes.length < 2) continue;
+  if (session) {
+    const deadzone = 0.5;
+    for (const inputSource of session.inputSources) {
+      const axes = inputSource.gamepad?.axes;
+      if (!axes) continue;
+      detectedAxisCount += axes.length;
 
-    // WebXR standard gamepads reserve axes 0-1 for the touchpad when present.
-    const stickAxis = axes.length >= 4 ? 2 : 0;
-    const x = axes[stickAxis];
-    const y = axes[stickAxis + 1];
-    if (x >= deadzone) xrPressedKeys.add("ArrowRight");
-    if (x <= -deadzone) xrPressedKeys.add("ArrowLeft");
-    if (y <= -deadzone) xrPressedKeys.add("ArrowUp");
-    if (y >= deadzone) xrPressedKeys.add("ArrowDown");
+      for (let axis = 0; axis < axes.length; axis++) {
+        const value = axes[axis];
+        if (axis % 2 === 0) {
+          if (value >= deadzone) xrPressedKeys.add("ArrowRight");
+          if (value <= -deadzone) xrPressedKeys.add("ArrowLeft");
+        } else {
+          if (value <= -deadzone) xrPressedKeys.add("ArrowUp");
+          if (value >= deadzone) xrPressedKeys.add("ArrowDown");
+        }
+      }
+    }
   }
+
+  bodyMaterial?.color.setHex(detectedAxisCount > 0 ? 0x00ff00 : 0xff0000);
 }
 
 function isControlPressed(key) {
@@ -160,7 +167,7 @@ async function initMeshes() {
 
   const car = new THREE.Group();
   const bodyGeometry = new THREE.BoxGeometry(1.5, 0.5, 2.4);
-  const bodyMaterial = new THREE.MeshStandardMaterial({
+  bodyMaterial = new THREE.MeshStandardMaterial({
     color: 0xff0000,
     roughness: 0.2,
     metalness: 0.2,
