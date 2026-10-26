@@ -247,6 +247,21 @@ async function initMeshes() {
   body.position.y = 0.25;
   car.add(body);
 
+  const upperBody = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5, 0.35, 1.2),
+    bodyMaterial,
+  );
+  upperBody.position.y = 0.6;
+  car.add(upperBody);
+
+  const frontCylinder = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.07, 0.7, 16),
+    bodyMaterial,
+  );
+  frontCylinder.rotation.x = Math.PI / 2;
+  frontCylinder.position.set(0, 0.55, -.95);
+  car.add(frontCylinder);
+
   const wheelGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.2, 16);
   const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
   for (const x of [-0.78, 0.78]) {
