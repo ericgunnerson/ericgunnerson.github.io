@@ -215,7 +215,7 @@ async function initMeshes() {
       metalness: 0.75,
       roughness: 0.15,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.75,
     }),
   );
   ground.rotation.x = -Math.PI / 2;
