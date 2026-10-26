@@ -29,27 +29,31 @@ const settings = {
 let turnRadius = 0;
 let lastTurnDirection = 0;
 
-window.addEventListener("keydown", (event) => {
-  const key = event.key.toLowerCase();
-  if (event.key.startsWith("Arrow")) {
-    event.preventDefault();
-    pressedKeys.add(event.key);
-  } else if (["w", "a", "s", "d"].includes(key)) {
-    event.preventDefault();
-    pressedKeys.add(key);
-  }
-});
+function addEventListeners() {
+  window.addEventListener("keydown", (event) => {
+    const key = event.key.toLowerCase();
+    if (event.key.startsWith("Arrow")) {
+      event.preventDefault();
+      pressedKeys.add(event.key);
+    } else if (["w", "a", "s", "d"].includes(key)) {
+      event.preventDefault();
+      pressedKeys.add(key);
+    }
+  });
 
-window.addEventListener("keyup", (event) => {
-  const key = event.key.startsWith("Arrow")
-    ? event.key
-    : event.key.toLowerCase();
-  pressedKeys.delete(key);
-});
+  window.addEventListener("keyup", (event) => {
+    const key = event.key.startsWith("Arrow")
+      ? event.key
+      : event.key.toLowerCase();
+    pressedKeys.delete(key);
+  });
 
-window.addEventListener("blur", () => {
-  pressedKeys.clear();
-});
+  window.addEventListener("blur", () => {
+    pressedKeys.clear();
+  });
+
+  window.addEventListener("resize", onWindowResize, false);
+}
 
 async function initRenderer() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -103,8 +107,6 @@ async function initCamera() {
     xrPressedKeys.clear();
   });
 }
-
-window.addEventListener('resize', onWindowResize, false);
 
 function onWindowResize() {
   if (!renderer || renderer.xr.isPresenting || !camera) return;
@@ -162,6 +164,32 @@ function updateFrontWheelRotation() {
   for (const wheel of car.userData.frontWheels) {
     wheel.rotation.y = steeringAngle;
   }
+}
+
+function handleKeyboardRotation(delta) {
+  const horizontalCameraInput =
+    (pressedKeys.has("a") ? 1 : 0) - (pressedKeys.has("d") ? 1 : 0);
+  const verticalCameraInput =
+    (pressedKeys.has("w") ? 1 : 0) - (pressedKeys.has("s") ? 1 : 0);
+  const yawRotation = new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(0, 1, 0),
+    horizontalCameraInput * settings.cameraRotationSpeed * delta,
+  );
+  const pitchRotation = new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(1, 0, 0),
+    verticalCameraInput * settings.cameraRotationSpeed * delta,
+  );
+  const parentWorldQuaternion = cameraRig.getWorldQuaternion(
+    new THREE.Quaternion(),
+  );
+  const cameraWorldQuaternion = camera.getWorldQuaternion(
+    new THREE.Quaternion(),
+  );
+  cameraWorldQuaternion.premultiply(yawRotation);
+  camera.quaternion
+    .copy(parentWorldQuaternion.invert())
+    .multiply(cameraWorldQuaternion)
+    .multiply(pitchRotation);
 }
 
 async function initScene() {
@@ -246,9 +274,15 @@ async function initLights() {
 }
 
 function animate(timestamp) {
-  if (!timer) return;
   timer.update(timestamp);
   const delta = Math.min(timer.getDelta(), 0.1);
+
+  playerUpdate(delta);
+  menu?.update();
+  renderer.render(scene, camera);
+}
+
+function playerUpdate(delta) {
   updateXrControls();
   const moveDirection =
     (isControlPressed("ArrowUp") ? 1 : 0) -
@@ -314,37 +348,13 @@ function animate(timestamp) {
   }
 
   if (!renderer.xr.isPresenting) {
-    const horizontalCameraInput =
-      (pressedKeys.has("a") ? 1 : 0) - (pressedKeys.has("d") ? 1 : 0);
-    const verticalCameraInput =
-      (pressedKeys.has("w") ? 1 : 0) - (pressedKeys.has("s") ? 1 : 0);
-    const yawRotation = new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(0, 1, 0),
-      horizontalCameraInput * settings.cameraRotationSpeed * delta,
-    );
-    const pitchRotation = new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(1, 0, 0),
-      verticalCameraInput * settings.cameraRotationSpeed * delta,
-    );
-    const parentWorldQuaternion = cameraRig.getWorldQuaternion(
-      new THREE.Quaternion(),
-    );
-    const cameraWorldQuaternion = camera.getWorldQuaternion(
-      new THREE.Quaternion(),
-    );
-    cameraWorldQuaternion.premultiply(yawRotation);
-    camera.quaternion
-      .copy(parentWorldQuaternion.invert())
-      .multiply(cameraWorldQuaternion);
-    camera.quaternion.multiply(pitchRotation);
+    handleKeyboardRotation(delta);
   }
-
-  menu?.update();
-  renderer.render(scene, camera);
 }
 
 // Initialize everything
 (async () => {
+  addEventListeners();
   timer = new THREE.Timer();
   timer.connect(document);
   await initRenderer();
